@@ -1,0 +1,264 @@
+---
+title: API
+description: A API-based migration guide for Redux-Saga users.
+---
+
+import { Aside, Icon, Badge } from "@astrojs/starlight/components"
+
+**Reference:** https://redux-saga.js.org/docs/api
+
+## Middleware API
+### [`createSagaMiddleware(options)`]()
+
+See <a href="/redux-sonnet/docs/getting-started/middleware-usage">`Operators.unsafeTake`</a>.
+
+### [`middleware.run(saga, ...args)`]()
+
+A Sonnet runs on instantiation, making this pattern obsolete.
+
+<Aside title="TODO">
+  Guide sentinel usage.
+</Aside>
+
+## Effect creators
+### [`take(pattern)`](https://redux-saga.js.org/docs/api#takepattern)
+<details>
+<summary>Original Reference</summary>
+Creates an Effect description that instructs the middleware to wait for a specified action on the Store.
+The Generator is suspended until an action that matches `pattern` is dispatched.
+
+The result of `yield take(pattern)` is an action object being dispatched.
+
+`pattern` is interpreted using the following rules:
+
+- If `take` is called with no arguments or `'*'` all dispatched actions are matched (e.g. `take()` will match all actions)
+
+- If it is a function, the action is matched if `pattern(action)` is true (e.g. `take(action => action.entities)` will match all actions having a (truthy) `entities` field.)
+> Note: if the pattern function has `toString` defined on it, `action.type` will be tested against `pattern.toString()` instead. This is useful if you're using an action creator library like redux-act or redux-actions.
+
+- If it is a String, the action is matched if `action.type === pattern` (e.g. `take(INCREMENT_ASYNC)`)
+
+- If it is an array, each item in the array is matched with aforementioned rules, so the mixed array of strings and function predicates is supported. The most common use case is an array of strings though, so that `action.type` is matched against all items in the array (e.g. `take([INCREMENT, DECREMENT])` and that would match either actions of type `INCREMENT` or `DECREMENT`).
+
+The middleware provides a special action `END`. If you dispatch the END action, then all Sagas blocked on a take Effect will be terminated regardless of the specified pattern. If the terminated Saga has still some forked tasks which are still running, it will wait for all the child tasks to terminate before terminating the Task.
+</details>
+
+<Aside type="caution" title="Caution">
+  Consider using the safe variant.
+</Aside>
+
+See <a href="/api/redux-sonnet/operatorsts/#unsafeTake">`Operators.unsafeTake`</a>.
+
+### [`takeMaybe(pattern)`](https://redux-saga.js.org/docs/api#takemaybepattern)
+
+See <a href="/api/redux-sonnet/operatorsts/#take">`Operators.take`</a>.
+
+### [`take(channel)`](https://redux-saga.js.org/docs/api#takechannel)
+
+<Aside type="caution" title="Caution">
+  Consider using the safe variant.
+</Aside>
+
+See <a href="/api/redux-sonnet/operatorsts/#unsafeTakeFrom">`Operators.unsafeTakeFrom`</a>.
+
+### [`takeMaybe(channel)`](https://redux-saga.js.org/docs/api#takemaybechannel)
+
+See <a href="/api/redux-sonnet/operatorsts/#takeFrom">`Operators.takeFrom`</a>.
+
+### [`takeEvery(pattern, saga, ...args)`](https://redux-saga.js.org/docs/api#takeeverypattern-saga-args)
+
+See <a href="/api/redux-sonnet/operatorsts/#takeEvery">`Operators.takeEvery`</a>.
+
+### [`takeEvery(channel, saga, ...args)`](https://redux-saga.js.org/docs/api#takeeverychannel-saga-args)
+### [`takeLatest(pattern, saga, ...args)`](https://redux-saga.js.org/docs/api#takeeverychannel-saga-args)
+### [`takeLatest(channel, saga, ...args)`](https://redux-saga.js.org/docs/api#takelatestchannel-saga-args)
+### [`takeLeading(pattern, saga, ...args)`](https://redux-saga.js.org/docs/api#takeleadingpattern-saga-args)
+### [`takeLeading(channel, saga, ...args)`](https://redux-saga.js.org/docs/api#takeleadingchannel-saga-args)
+### [`put(action)`](https://redux-saga.js.org/docs/api#putaction)
+### [`putResolve(action)`](https://redux-saga.js.org/docs/api#putresolveaction)
+### [`put(channel, action)`](https://redux-saga.js.org/docs/api#putchannel-action)
+### [`call(fn, ...args)`](https://redux-saga.js.org/docs/api#callfn-args)
+### [`call([context, fn], ...args)`]()
+### [`call([context, fnName], ...args)`]()
+### [`call({context, fn}, ...args)`]()
+### [`apply(context, fn, [args])`]()
+### [`cps(fn, ...args)`]()
+### [`cps([context, fn], ...args)`]()
+### [`cps({context, fn}, ...args)`]()
+### [`fork(fn, ...args)`](https://redux-saga.js.org/docs/api#forkfn-args)
+### [`fork([context, fn], ...args)`](https://redux-saga.js.org/docs/api#forkcontext-fn-args)
+### [`fork({context, fn}, ...args)`](https://redux-saga.js.org/docs/api#forkcontext-fn-args-1)
+### [`spawn(fn, ...args)`](https://redux-saga.js.org/docs/api#spawnfn-args)
+### [`spawn([context, fn], ...args)`](https://redux-saga.js.org/docs/api#spawncontext-fn-args)
+### [`join(task)`](https://redux-saga.js.org/docs/api#jointask)
+### [`join([...tasks])`](https://redux-saga.js.org/docs/api#jointasks)
+### [`cancel(task)`](https://redux-saga.js.org/docs/api#canceltask)
+<details>
+<summary>Original Reference</summary>
+Creates an Effect description that instructs the middleware to cancel a previously forked task.
+
+- `task: Task` - A [Task](#task) object returned by a previous `fork`
+
+#### Notes
+
+To cancel a running task, the middleware will invoke `return` on the underlying Generator
+object. This will cancel the current Effect in the task and jump to the finally block (if defined).
+
+Inside the finally block, you can execute any cleanup logic or dispatch some action to keep the
+store in a consistent state (e.g. reset the state of a spinner to false when an ajax request
+is cancelled). You can check inside the finally block if a Saga was cancelled by issuing
+a `yield cancelled()`.
+
+Cancellation propagates downward to child sagas. When cancelling a task, the middleware will also
+cancel the current Effect (where the task is currently blocked). If the current Effect
+is a call to another Saga, it will be also cancelled. When cancelling a Saga, all *attached
+forks* (sagas forked using `yield fork()`) will be cancelled. This means that cancellation
+effectively affects the whole execution tree that belongs to the cancelled task.
+
+`cancel` is a non-blocking Effect. i.e. the Saga executing it will resume immediately after
+performing the cancellation.
+
+For functions which return Promise results, you can plug your own cancellation logic
+by attaching a `[CANCEL]` to the promise.
+
+The following example shows how to attach cancellation logic to a Promise result:
+
+```javascript
+import { CANCEL } from 'redux-saga'
+import { fork, cancel } from 'redux-saga/effects'
+
+function myApi() {
+  const promise = myXhr(...)
+
+  promise[CANCEL] = () => myXhr.abort()
+  return promise
+}
+
+function* mySaga() {
+
+  const task = yield fork(myApi)
+
+  // ... later
+  // will call promise[CANCEL] on the result of myApi
+  yield cancel(task)
+}
+```
+
+redux-saga will automatically cancel jqXHR objects using their `abort` method.
+</details>
+
+```ts twoslash
+/// <reference types="effect" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+// ---cut---
+import { Effect, Fiber } from 'effect'
+
+declare const myApi: Effect.Effect<void, never, never>
+
+const mySaga = Effect.gen(function*() {
+  const task = yield* Effect.fork(myApi)
+  yield* Fiber.interrupt(task)
+})
+
+```
+
+### [`cancel([...tasks])`](https://redux-saga.js.org/docs/api#canceltasks)
+### [`cancel()`](https://redux-saga.js.org/docs/api#cancel)
+### [`select(selector, ...args)`]()
+<details>
+<summary>Original Reference</summary>
+Creates an effect that instructs the middleware to invoke the provided selector on the
+current Store's state (i.e. returns the result of `selector(getState(), ...args)`).
+
+- `selector: Function` - a function `(state, ...args) => args`. It takes the
+current state and optionally some arguments and returns a slice of the current Store's state
+
+- `args: Array<any>` - optional arguments to be passed to the selector in addition of `getState`.
+
+If `select` is called without argument (i.e. `yield select()`) then the effect is resolved
+with the entire state (the same result of a `getState()` call).
+
+> It's important to note that when an action is dispatched to the store, the middleware first
+forwards the action to the reducers and then notifies the Sagas. This means that when you query the
+Store's State, you get the State **after** the action has been applied.
+> However, this behavior is only guaranteed if all subsequent middlewares call `next(action)` synchronously.  If any subsequent middleware calls `next(action)` asynchronously (which is unusual but possible), then the sagas will get the state from **before** the action is applied.  Therefore it is recommended to review the source of each subsequent middleware to ensure it calls `next(action)` synchronously, or else ensure that redux-saga is the last middleware in the call chain.
+
+#### Notes
+
+Preferably, a Saga should be autonomous and should not depend on the Store's state. This makes
+it easy to modify the state implementation without affecting the Saga code. A saga should preferably
+depend only on its own internal control state when possible. But sometimes, one could
+find it more convenient for a Saga to query the state instead of maintaining the needed data by itself
+(for example, when a Saga duplicates the logic of invoking some reducer to compute a state that was
+already computed by the Store).
+
+For example, suppose we have this state shape in our application:
+
+```javascript
+state = {
+  cart: {...}
+}
+```
+
+We can create a *selector*, i.e. a function which knows how to extract the `cart` data from the State:
+
+`./selectors`
+```javascript
+export const getCart = state => state.cart
+```
+
+Then we can use that selector from inside a Saga using the `select` Effect:
+
+`./sagas.js`
+```javascript
+import { take, fork, select } from 'redux-saga/effects'
+import { getCart } from './selectors'
+
+function* checkout() {
+  // query the state using the exported selector
+  const cart = yield select(getCart)
+
+  // ... call some API endpoint then dispatch a success/error action
+}
+
+export default function* rootSaga() {
+  while (true) {
+    yield take('CHECKOUT_REQUEST')
+    yield fork(checkout)
+  }
+}
+```
+
+`checkout` can get the needed information directly by using `select(getCart)`. The Saga is coupled only with the `getCart` selector. If we have many Sagas (or React Components) that needs to access the `cart` slice, they will all be coupled to the same function `getCart`. And if we now change the state shape, we need only to update `getCart`.
+</details>
+### [`actionChannel(pattern, [buffer])`]()
+### [`flush(channel)`]()
+### [`cancelled()`]()
+### [`setContext(props)`]()
+### [`getContext(prop)`]()
+### [`delay(ms, [val])`]()
+### [`throttle(ms, pattern, saga, ...args)`]()
+### [`throttle(ms, channel, saga, ...args)`]()
+### [`debounce(ms, pattern, saga, ...args)`]()
+### [`debounce(ms, channel, saga, ...args)`]()
+### [`retry(maxTries, delay, fn, ...args)`]()
+## Effect combinators
+### [`race(effects)`]()
+### [`race([...effects]) (with Array)`]()
+### [`all([...effects]) - parallel effects`]()
+### [`all(effects)`]()
+## Interfaces
+### [`Task`]()
+### [`Channel`]()
+### [`Buffer`]()
+### [`SagaMonitor`]()
+## External API
+### [`runSaga(options, saga, ...args)`]()
+## Utils
+### [`channel([buffer])`]()
+### [`eventChannel(subscribe, [buffer])`]()
+### [`buffers`]()
+### [`cloneableGenerator(generatorFunc)`]()
+### [`createMockTask()`]()
+## Cheatsheets
+### [Blocking / Non-blocking]()

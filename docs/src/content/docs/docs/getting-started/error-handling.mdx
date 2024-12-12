@@ -1,0 +1,125 @@
+---
+title: Error Handling
+description: Set up a new Effect project across different platforms like Node.js, Deno, Bun, and Vite + React with step-by-step installation guides.
+---
+
+import { Tabs, TabItem } from "@astrojs/starlight/components"
+
+## Premise
+
+It is **required** to handle errors in [Stanzas][stanza]. Failure to
+appropriately catch known errors results in static type analysis failing at
+[Sonnet][sonnet] creation:
+
+```ts twoslash
+/// <reference types="effect" />
+/// <reference types="redux" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+import { Effect, Stream, Random } from "effect"
+import type { Action, Reducer, UnknownAction } from "redux"
+import { Sonnet } from "redux-sonnet"
+// ---cut---
+declare const canFail: Effect.Effect<void, Error, never>
+
+// @errors: 2379
+Sonnet.make(
+  canFail,
+  Sonnet.defaultLayer
+)
+```
+
+### Unhandled Exceptions
+
+If an exception is thrown as part of a Stanza's execution, the thrown exception
+will propagate up to the Sonnet's fibre execution.
+
+## Full Example
+
+
+<Tabs>
+  <TabItem label="Using pipe">
+```ts twoslash {"1. This can produce a FetchError:":15-16} {"2. We are forced to handle this possibliity:":20-28}
+/// <reference types="effect" />
+/// <reference types="redux" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+// ---cut---
+import { Effect, Stream, Data, flow, pipe } from "effect"
+import type { Action, Reducer, UnknownAction } from "redux"
+import { Actions, Operators, Sonnet } from "redux-sonnet"
+
+class FetchError extends Data.TaggedError("FetchError")<{}> {}
+
+const tryFetch = Effect.tryPromise({
+//    ^?
+  try: () => fetch("https://some.resource"),
+  catch: () => new FetchError()
+})
+
+const fetchAction = Actions.make("fetch")<void, unknown, FetchError>()
+
+const stanza = pipe(
+
+  tryFetch,
+  Effect.map(fetchAction.fulfilled),
+  Effect.flatMap(Operators.put),
+  Effect.asVoid,
+
+  Effect.catchTag(
+    "FetchError",
+    flow(
+      fetchAction.rejected,
+      Operators.put,
+      Effect.asVoid
+    )
+  )
+)
+
+const sonnet = Sonnet.make(
+  stanza,
+  Sonnet.defaultLayer
+)
+```
+  </TabItem>
+  <TabItem label="Using generator">
+```ts twoslash {21-24}
+/// <reference types="effect" />
+/// <reference types="redux" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+// ---cut---
+import { Effect, Stream, Data } from "effect"
+import type { Action, Reducer, UnknownAction } from "redux"
+import { Actions, Operators, Sonnet } from "redux-sonnet"
+
+class FetchError extends Data.TaggedError("FetchError")<{
+  message: string;
+}> {}
+
+const tryFetch = Effect.tryPromise({
+//    ^?
+  try: () => fetch("https://some.resource"),
+  catch: (e: unknown) => new FetchError({ message: String(e) })
+})
+
+const fetchAction = Actions.make("fetch")<void, unknown, FetchError>()
+
+const stanza = Effect.gen(function*() {
+  const data = yield* tryFetch
+  const action = fetchAction.fulfilled(data)
+  yield* Operators.put(action).pipe(Effect.asVoid)
+}).pipe(
+  Effect.catchTag(
+    "FetchError",
+    (cause) => Effect.asVoid(Operators.put(fetchAction.rejected(cause)))
+  )
+)
+
+const sonnet = Sonnet.make(
+  stanza,
+  Sonnet.defaultLayer
+)
+```
+  </TabItem>
+</Tabs>
+
+[stanza]: /docs/getting-started/what-is-a-stanza
+[sonnet]: /api/redux-sonnet/sonnetts

@@ -1,0 +1,33 @@
+{
+  "name": "",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "eslint --fix 'src/content/docs/**/*.md'",
+    "astro": "astro"
+  },
+  "dependencies": {
+    "@astrojs/starlight": "^0.30.2",
+    "@effect/vitest": "^0.16.0",
+    "@fontsource/dejavu-mono": "^5.1.0",
+    "@fontsource/nunito-sans": "^5.1.1",
+    "@reduxjs/toolkit": "^2.5.1",
+    "@shikijs/transformers": "^1.24.4",
+    "@shikijs/twoslash": "^1.25.1",
+    "astro": "^5.0.2",
+    "effect": "^3.12.0",
+    "expressive-code-twoslash": "^0.3.1",
+    "redux": "^5.0.1",
+    "redux-sonnet": "workspace:*",
+    "sharp": "^0.33.5",
+    "starlight-theme-catppuccin": "^2.0.0"
+  },
+  "devDependencies": {
+    "eslint": "^9.11.1",
+    "eslint-plugin-markdown": "^5.1.0"
+  }
+}

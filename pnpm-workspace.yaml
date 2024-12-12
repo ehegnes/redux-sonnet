@@ -1,0 +1,10 @@
+packages:
+  - 'packages/*'
+  - 'examples/*'
+  - 'docs'
+
+# Prevent dependencies from being hoisted for all packages under `examples` or
+# `docs`
+neverHoist:
+  - "**/examples/**" 
+  - "**/docs/**"

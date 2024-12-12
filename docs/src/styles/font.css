@@ -1,0 +1,17 @@
+:root {
+  --sl-font: 'Nunito Sans', serif;
+  --sl-font-mono: 'DejaVu Mono', monospace;
+}
+
+
+html[data-theme="light"] #_top {
+  background-image: linear-gradient(120deg, var(--sl-color-accent), var(--sl-color-blue));
+  background-clip: text;
+  color: transparent;
+}
+
+html[data-theme="dark"] #_top {
+  background-image: linear-gradient(120deg, var(--sl-color-purple-high), var(--sl-color-blue-high));
+  background-clip: text;
+  color: transparent;
+}

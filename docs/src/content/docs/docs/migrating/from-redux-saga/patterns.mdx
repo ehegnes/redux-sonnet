@@ -1,0 +1,40 @@
+---
+title: Patterns
+description: Patterns and anti-patterns from Redux Saga
+---
+
+## Looping Forever
+
+In Redux Saga a common pattern for looping is as follows:
+```javascript
+function* watcher() {
+  while (true) {
+    const action = yield take(ACTION)
+    yield fork(worker, action.payload)
+  }
+}
+
+function* worker(payload) {
+  // ... do some stuff
+}
+```
+
+The declarative nature of
+[`Effect.forever`](https://effect-ts.github.io/effect/effect/Effect.ts.html#forever)
+is more appropriate:
+```ts twoslash
+/// <reference types="effect" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+// ---cut---
+import { Effect, Option } from "effect"
+import { Operators } from "redux-sonnet"
+
+declare const worker: (action: unknown) => Effect.Effect<void, never, never>
+
+const watcher = Effect.gen(function*(){
+  const action = yield* Operators.unsafeTake(Operators.ofType('ACTION'))
+  yield* Effect.fork(worker(action))
+}).pipe(
+  Effect.forever
+)
+```

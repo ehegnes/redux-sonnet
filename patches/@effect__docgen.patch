@@ -1,0 +1,137 @@
+diff --git a/bin.cjs b/bin.cjs
+index d38c42763c39fddc36a12edccab423f5c313f55b..64d3310e5ee27937f104235465bd5e70ff48c9f6 100755
+--- a/bin.cjs
++++ b/bin.cjs
+@@ -297022,7 +297022,7 @@ var MarkdownPrinter = {
+ };
+ var printSince = match2({
+   onNone: () => "",
+-  onSome: (v) => MarkdownPrinter.paragraph(`Added in v${v}`)
++  onSome: (v) => MarkdownPrinter.paragraph(`*Added in [v${v}](https://github.com/ehegnes/redux-sonnet/releases/tag/v${v})*`)
+ });
+ var printTitle = (s, deprecated, type2) => {
+   const name = s.trim() === "hasOwnProperty" ? `${s} (function)` : s;
+@@ -297039,7 +297039,7 @@ var printSignature = (s) => MarkdownPrinter.paragraph(MarkdownPrinter.bold("Sign
+ var printSignatures = (ss) => MarkdownPrinter.paragraph(MarkdownPrinter.bold("Signature")) + MarkdownPrinter.paragraph(MarkdownPrinter.fence("```ts", ss.join("\n"), "```"));
+ var printExamples = (es) => es.map(
+   ({ body, fences }) => MarkdownPrinter.paragraph(MarkdownPrinter.bold("Example")) + MarkdownPrinter.paragraph(
+-    MarkdownPrinter.fence(fences?.start ?? "```ts", body, fences?.end ?? "```")
++    MarkdownPrinter.fence("```ts twoslash\n// eslint-disable-next-line @typescript-eslint/triple-slash-reference\n/// <reference types=\"effect\" />\n/// <reference types=\"@reduxjs/toolkit\" />\n/// <reference types=\"redux\" />\n// @paths: {\"redux-sonnet\": [\"../packages/redux-sonnet/src\"], \"redux-sonnet/*\": [\"../packages/redux-sonnet/src/*\"]}\n// eslint-disable-next-line @typescript-eslint/no-unused-vars\nimport * as assert from \"node:assert\"\n// ---cut---", body, fences?.end ?? "```")
+   )
+ ).join("\n\n");
+ var printStaticMethod = (m) => MarkdownPrinter.paragraph(
+@@ -297070,22 +297070,30 @@ var printProperties = (properties) => map3(
+   (property) => printProperty(property) + "\n\n"
+ ).join("");
+ var printModuleDescription = (module2) => MarkdownPrinter.paragraph(
+-  MarkdownPrinter.h2(printTitle(module2.name, module2.deprecated, "overview")),
+   printDescription(module2.description),
+   printExamples(module2.examples),
+   printSince(module2.since)
+ );
+-var printMeta = (title, order) => MarkdownPrinter.paragraph(
++var printMeta = (title, description, order) => MarkdownPrinter.paragraph(
+   "---",
+   `
+ `,
+   `title: ${title}`,
+   `
+ `,
+-  `nav_order: ${order}`,
++  `description: ${getOrElse(description, () => "\"\"").replaceAll("\n", "")}`,
+   `
+ `,
+-  `parent: Modules`,
++  `sidebar:`,
++  `
++`,
++  `  order: ${order}`,
++  `
++`,
++  `tableOfContents:`,
++  `
++`,
++  `  minHeadingLevel: 1`,
+   `
+ `,
+   "---"
+@@ -297197,7 +297205,7 @@ var byCategory = mapInput2(
+   ([category]) => category
+ );
+ var printModule = (module2, order) => gen2(function* (_) {
+-  const header = printMeta(module2.path.slice(1).join("/"), order);
++  const header = printMeta(module2.path.slice(1).join("/"), module2.description, order);
+   const description = MarkdownPrinter.paragraph(printModuleDescription(module2));
+   const content = pipe(
+     getPrintables(module2),
+@@ -297233,9 +297241,9 @@ var printModule = (module2, order) => gen2(function* (_) {
+     [
+       header,
+       description,
+-      "---\n",
+-      tableOfContents(content),
+-      "---\n",
++      // "---\n",
++      // tableOfContents(content),
++      // "---\n",
+       content
+     ].join("\n")
+   ));
+@@ -297403,7 +297411,7 @@ var parseExample = (body) => {
+   return {
+     body: example?.groups?.body ?? "",
+     fences: {
+-      start: example?.groups?.fenceStart?.trim() ?? "```ts",
++      start: example?.groups?.fenceStart?.trim() ?? "```ts twoslash",
+       end: example?.groups?.fenceEnd?.trim() ?? "```"
+     }
+   };
+@@ -298361,47 +298369,9 @@ var createExamplesTsConfigJson = gen2(function* (_) {
+   ));
+ });
+ var getMarkdown = (modules) => gen2(function* (_) {
+-  const homepage = yield* _(getMarkdownHomepage);
+-  const index = yield* _(getMarkdownIndex);
+   const yml = yield* _(getMarkdownConfigYML);
+   const moduleFiles = yield* _(getModuleMarkdownFiles(modules));
+-  return [homepage, index, yml, ...moduleFiles];
+-});
+-var getMarkdownHomepage = gen2(function* (_) {
+-  const config2 = yield* _(Configuration);
+-  const process3 = yield* _(Process);
+-  const cwd = yield* _(process3.cwd);
+-  const path8 = yield* _(Path3);
+-  return createFile(
+-    path8.join(cwd, config2.outDir, "index.md"),
+-    stripMargin(
+-      `|---
+-       |title: Home
+-       |nav_order: 1
+-       |---
+-       |`
+-    ),
+-    false
+-  );
+-});
+-var getMarkdownIndex = gen2(function* (_) {
+-  const config2 = yield* _(Configuration);
+-  const process3 = yield* _(Process);
+-  const cwd = yield* _(process3.cwd);
+-  const path8 = yield* _(Path3);
+-  return createFile(
+-    path8.join(cwd, config2.outDir, "modules", "index.md"),
+-    stripMargin(
+-      `|---
+-       |title: Modules
+-       |has_children: true
+-       |permalink: /docs/modules
+-       |nav_order: 2
+-       |---
+-       |`
+-    ),
+-    false
+-  );
++  return [yml, ...moduleFiles];
+ });
+ var resolveConfigYML = (content) => gen2(function* (_) {
+   const config2 = yield* _(Configuration);

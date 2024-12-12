@@ -1,0 +1,26 @@
+# General
+*.tsbuildinfo
+.DS_Store
+.direnv/
+.env
+.idea/
+build/
+coverage/
+dist/
+node_modules/
+pnpm-debug.log*
+tmp/
+
+# Intermediary docs
+packages/**/docs
+
+
+# Astro
+## build output
+docs/dist/
+## generated types
+docs/.astro/
+## environment variables
+docs/.env
+docs/.env.production
+

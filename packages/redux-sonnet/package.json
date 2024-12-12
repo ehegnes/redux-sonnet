@@ -1,0 +1,42 @@
+{
+  "name": "redux-sonnet",
+  "version": "0.0.0",
+  "description": "A Redux middleware for side-effect with the Effect ecosystem.",
+  "type": "module",
+  "homepage": "https://ehegnes.github.io/redux-sonnet",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ehegnes/redux-sonnet.git",
+    "directory": "packages/redux-sonnet"
+  },
+  "scripts": {
+    "codegen": "build-utils prepare-v2",
+    "build": "pnpm build-esm && pnpm build-annotate && pnpm build-cjs && build-utils pack-v2",
+    "build-esm": "tsc -b tsconfig.build.json",
+    "build-cjs": "babel build/esm --plugins @babel/transform-export-namespace-from --plugins @babel/transform-modules-commonjs --out-dir build/cjs --source-maps",
+    "build-annotate": "babel build/esm --plugins annotate-pure-calls --out-dir build/esm --source-maps",
+    "dtslint": "dtslint dtslint",
+    "check": "tsc -b tsconfig.json",
+    "test": "vitest",
+    "coverage": "vitest --coverage"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@8.15.4+sha1.c85a4305534f76d461407b59277b954bac97b5c4",
+  "devDependencies": {
+    "@effect/vitest": "^0.16.0",
+    "@reduxjs/toolkit": "^2.4.0",
+    "@vitest/ui": "2.1.8",
+		"mitt": "^3.0.1",
+    "effect": "^3.12.0",
+    "redux": "^5.0.1",
+    "vitest": "^2.1.8",
+    "yoctocolors": "^2.1.1"
+  },
+  "peerDependencies": {
+    "@reduxjs/toolkit": "^2.0.0",
+    "effect": "^3.0.0",
+    "redux": "^5.0.0"
+  }
+}
