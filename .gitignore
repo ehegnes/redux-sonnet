@@ -23,4 +23,6 @@ docs/.astro/
 ## environment variables
 docs/.env
 docs/.env.production
+# generated api documentation
+docs/src/content/docs/api
 

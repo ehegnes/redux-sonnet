@@ -14,12 +14,22 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout your repository using git
+      - name: Checkout
         uses: actions/checkout@v4
-      - name: Install, build, and upload your site
+      - name: Install Nix
+        uses: DeterminateSystems/nix-installer-action@main
+      - name: Connect Magic Nix Cache
+        uses: DeterminateSystems/magic-nix-cache-action@main
+      - name: Install Dependencies
+        run: nix develop --command pnpm install
+      - name: Generate API Documentation
+        run: nix develop --command pnpm run docgen
+      - name: Build
         uses: withastro/action@v3
         with:
           path: ./docs
+          node-version: 20
+          package-manager: pnpm@latest
 
   deploy:
     needs: build
