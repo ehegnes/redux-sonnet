@@ -156,9 +156,6 @@ importers:
       '@fontsource/dejavu-mono':
         specifier: ^5.1.0
         version: 5.1.0
-      '@fontsource/kantumruy-pro':
-        specifier: ^5.1.1
-        version: 5.1.1
       '@fontsource/nunito-sans':
         specifier: ^5.1.1
         version: 5.1.1
@@ -1041,9 +1038,6 @@ packages:
 
   '@fontsource/dejavu-mono@5.1.0':
     resolution: {integrity: sha512-p5RcE79T6c4K5PFTIV5IhsCAbb7nAhasqld+XMeT6phP/utpQsU7pTbSsbPJQWDV41HGzzYruAil1tnNmMMbAA==}
-
-  '@fontsource/kantumruy-pro@5.1.1':
-    resolution: {integrity: sha512-AZS3uHSV6YR+B6cYoER4iUJJUE08n96TmUu3+qiDzGD7QUb6ER5D0iKGraLkUky/50vYVVpBOG3Hr6QP3gr/VA==}
 
   '@fontsource/nunito-sans@5.1.1':
     resolution: {integrity: sha512-84sV7nRYKFlzoY6FeLBAf1FF6+MebDXklVz28Phuh4L52t2juhjRmLXweehNN9pjgdvM0gXCe/kYsgI8WVELUQ==}
@@ -6117,8 +6111,6 @@ snapshots:
       '@expressive-code/core': 0.38.3
 
   '@fontsource/dejavu-mono@5.1.0': {}
-
-  '@fontsource/kantumruy-pro@5.1.1': {}
 
   '@fontsource/nunito-sans@5.1.1': {}
 
