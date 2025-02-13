@@ -3,5 +3,27 @@ title: What is a Stanza?
 description: xxx
 ---
 
-A `Stanza` is an Effect (or Effect sub-type, such as `Stream`) which dispatched
-its result(s) to the Redux Sonnet middleware.
+A `Stanza` is an [Effect][effect-type] (or Effect sub-type, such as `Stream`)
+which dispatches its result(s) to the Redux Sonnet middleware.
+
+Sonnet instantiations take a **root stanza** in a similar manner to how Redux
+Saga accepts a _root saga_ or how `redux-observable` requires a _root epic_.
+
+The type of a `Stanza` is as follows:
+
+```ts twoslash
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference types="effect" />
+/// <reference types="redux" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+import { Stanza } from "redux-sonnet"
+// ---cut---
+// @noErrors: 2304
+declare const stanza: Stanza.Stanza<R>
+//                           ^?
+```
+
+A `Stanza` is simply an Effect which can never fail and de facto requires
+provisioning of the `SonnetService` to facilitate coordination with Redux.
+
+[effect-type]: https://effect.website/docs/getting-started/the-effect-type/

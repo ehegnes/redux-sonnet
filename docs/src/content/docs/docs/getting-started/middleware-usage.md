@@ -3,10 +3,10 @@ title: Middleware Usage
 description: An introductory guide to Redux Sonnet middleware usage with Redux.
 ---
 
-## Declaring Side-effects
+## Declaring Side-effect Handlers
 
-`Sonnet`s immediately execute the provided root `Stanza` in a forking manner.
-`Stanza`s must be declared as part of `Sonnet` instantiation.
+`Sonnet`s immediately execute the provided root [`Stanza`][stanza] in a forking
+manner. `Stanza`s must be declared as part of `Sonnet` instantiation.
 
 ```ts twoslash
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference
@@ -149,6 +149,66 @@ const store = applyMiddleware(sonnet)(createStore)(() => {})
 //    ^?
 ```
 
+## Provisioning Resources
+
+Side-effect handlers, or `Stanza`s, are resourceful, meaning they can
+request fulfillment of some set of services.
+
+### Layers
+
+The second argument to `Sonnet.make()` is a `Layer` comprising the resources
+available to running side-effect handlers. See the below example for usage
+guidance. Note that `SonnetService` must be provisioned for all `Sonnet`
+instantiations.
+
+### Re-using a `ManagedRuntime`
+
+If the integrating application already makes use of a
+[`ManagedRuntime`][managedruntime], a `MemoMap` may be provided at Sonnet
+instantiation to facilitate [layer memoization][layer-memoization].
+
+```ts twoslash
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference
+/// <reference types="effect" />
+/// <reference types="redux" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+// ---cut---
+import { Context, Effect, Layer, ManagedRuntime } from "effect"
+import { Sonnet } from "redux-sonnet"
+
+class MyService extends Context.Tag("MyService")<
+  MyService,
+  { readonly _: Effect.Effect<unknown> }
+>() {}
+
+const layer = Layer.succeed(
+  MyService,
+  { _: Effect.succeed(void 0) }
+)
+
+const existingRuntime = ManagedRuntime.make(layer)
+//    ^?
+
+// @errors: 2304
+const sonnet = Sonnet.make(
+  //  ^?
+  Effect.void,
+  Layer.mergeAll(
+    layer,
+    Sonnet.defaultLayer
+  ),
+  existingRuntime.memoMap
+  //              ^?
+)
+```
+
+## Cleanup
+
+> **TODO:** Unit test and document runtime disposal.
+
+[stanza]: https://ehegnes.github.io/redux-sonnet/docs/getting-stared/what-is-a-stanza
+[layer-memoization]: https://effect.website/docs/requirements-management/layer-memoization/
+[managedruntime]: https://effect.website/docs/runtime/#managedruntime
 [queue]: https://effect.website/docs/concurrency/queue/
 [synchronizedref]: https://effect.website/docs/state-management/synchronizedref/
 [layer]: https://effect.website/docs/requirements-management/layers

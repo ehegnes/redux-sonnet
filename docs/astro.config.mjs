@@ -46,12 +46,12 @@ export default defineConfig({
               slug: "docs/getting-started/installation"
             },
             {
-              label: "What is a Stanza?",
-              slug: "docs/getting-started/what-is-a-stanza"
-            },
-            {
               label: "Middleware Usage",
               slug: "docs/getting-started/middleware-usage"
+            },
+            {
+              label: "What is a Stanza?",
+              slug: "docs/getting-started/what-is-a-stanza"
             },
             {
               label: "Error Handling",

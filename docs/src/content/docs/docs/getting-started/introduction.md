@@ -17,8 +17,6 @@ both of these systems.
 | **Declarative** | Be explicitly implicit about branching code. |
 | **Familiar** | Principles and patterns from well-known libraries carry over with new life. |
 
-## How to Use These Docs
-
 
 [redux-saga]: https://redux-saga.js.org/
 [redux-observable]: https://redux-observable.js.org/
