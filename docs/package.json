@@ -3,12 +3,13 @@
   "type": "module",
   "version": "0.0.1",
   "scripts": {
-    "dev": "astro dev",
-    "start": "astro dev",
+    "astro": "astro",
     "build": "astro build",
+    "dev": "astro dev",
+    "lint": "eslint 'src/content/docs/**/*.md'",
+    "lint:fix": "eslint --fix 'src/content/docs/**/*.md'",
     "preview": "astro preview",
-    "lint": "eslint --fix 'src/content/docs/**/*.md'",
-    "astro": "astro"
+    "start": "astro dev"
   },
   "dependencies": {
     "@astrojs/starlight": "^0.30.2",

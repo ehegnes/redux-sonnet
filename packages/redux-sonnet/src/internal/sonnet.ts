@@ -223,9 +223,10 @@ export const makeService = (
      * Takes incoming actions from Redux
      */
     const actionQueue = yield* Queue[queue.strategy]<Action>(capacity as any)
-    const dispatchQueue = yield* Queue[queue.strategy]<Take.Take<Action>>(
-      capacity as any
-    )
+    /**
+     * Dispatches actions from `Stanzas`
+     */
+    const dispatchQueue = yield* Queue.unbounded<Take.Take<Action>>()
 
     /**
      * Takes incoming state from Reudx on each new action.
@@ -234,22 +235,14 @@ export const makeService = (
 
     const changes = yield* pipe(
       stateRef.changes,
-      // Stream.share({
-      //   capacity: capacity ?? "unbounded",
-      //   replay: options.replay
-      // })
-      Stream.broadcastDynamic({ capacity: "unbounded" })
+      Stream.broadcastDynamic({ capacity: "unbounded", replay: options.replay })
     )
 
     const latest = Stream.fromEffect(Ref.get(stateRef))
 
     const action$ = yield* pipe(
       Stream.fromQueue(actionQueue, {}),
-      // Stream.share({
-      //   capacity: "unbounded",
-      //   replay: options.replay
-      // })
-      Stream.broadcastDynamic({ capacity: "unbounded" })
+      Stream.broadcastDynamic({ capacity: "unbounded", replay: options.replay })
     )
 
     const dispatch$ = Stream.fromQueue(dispatchQueue)

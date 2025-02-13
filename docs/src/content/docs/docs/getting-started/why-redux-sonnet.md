@@ -5,5 +5,3 @@ description: Discover how Redux Sonnet provides a superior development experienc
 
 Redux Sonnet is born from the desire to fortify proven, existing side-effect
 management patterns with the [Effect](https://efffect.website) ecosystem.
-
-# 
