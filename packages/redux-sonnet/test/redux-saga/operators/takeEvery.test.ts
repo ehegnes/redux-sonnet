@@ -1,103 +1,75 @@
-import { expect, it } from "@effect/vitest"
-import { Effect, Fiber, Layer, Logger, LogLevel } from "effect"
-import { withConsoleLog } from "effect/Logger"
+import { describe, expect, it } from "@effect/vitest"
+import {
+  Effect,
+  Fiber,
+  FiberStatus,
+  Layer,
+  ManagedRuntime,
+  Option,
+  pipe,
+  Ref
+} from "effect"
 import type { Action } from "redux"
 import { applyMiddleware, legacy_createStore as createStore } from "redux"
 import { Operators, Sonnet } from "redux-sonnet"
-import colors from "yoctocolors"
-// import sagaMiddleware, { END } from "../../src"
-// import { cancel, take, takeEvery } from "../../src/effects"
 
-it("takeEvery", () => {
-  const loop = 10
-  const actual: Array<Array<string>> = []
-  const sonnet = Sonnet.make(Layer.mergeAll(
-    Sonnet.defaultLayer,
-    Logger.minimumLogLevel(LogLevel.Trace)
-  ))
-  const store = applyMiddleware(sonnet.middleware)(createStore)(() => {})
+describe("takeEvery", () => {
+  /**
+   * @see https://github.com/redux-saga/redux-saga/blob/01f425c/packages/core/__tests__/sagaHelpers/takeEvery.js#L4
+   */
+  it("takeEvery", async () => {
+    const loop = 10
+    const actual: Array<Array<string>> = []
 
-  // function* root() {
-  //   const task = yield takeEvery("ACTION", worker, "a1", "a2")
-  //   yield take("CANCEL_WATCHER")
-  //   yield cancel(task)
-  // }
+    const worker = (action: Action, arg1: string, arg2: string) =>
+      Effect.gen(function*() {
+        actual.push([arg1, arg2, (action as any).payload as unknown as string])
+        return yield* Effect.void
+      })
 
-  // function* worker(arg1, arg2, action) {
-  //   actual.push([arg1, arg2, action.payload])
-  // }
-
-  const worker = (action: Action, arg1: string, arg2: string) =>
-    Effect.gen(function*() {
-      actual.push([arg1, arg2, (action as any).payload as unknown as string])
-      return yield* Effect.void
+    const root = Effect.gen(function*() {
+      const task = yield* Operators.takeEvery(
+        Operators.ofType("ACTION"),
+        worker,
+        "a1",
+        "a2"
+      )
+      yield* Operators.take(Operators.ofType("CANCEL_WATCHER"))
+      yield* Fiber.interrupt(task)
     })
 
-  const root = Effect.gen(function*() {
-    const task = yield* Operators.takeEvery(
-      Operators.ofType("ACTION"),
-      worker,
-      "a1",
-      "a2"
+    const sonnet = Sonnet.make(
+      root,
+      Sonnet.defaultLayer
     )
-    yield* Operators.take(Operators.ofType("CANCEL_WATCHER"))
-    yield* Fiber.interrupt(task)
-  })
 
-  const mainTask = sonnet.run(root)
+    const store = applyMiddleware(sonnet)(createStore)(() => {})
 
-  // const inputTask = Promise.resolve()
-  //   .then(() => {
-  //     for (let i = 1; i <= loop / 2; i++) {
-  //       store.dispatch({
-  //         type: "ACTION",
-  //         payload: i
-  //       })
-  //     }
-  //   }) // the watcher should be cancelled after this
-  //   // no further task should be forked after this
-  //   .then(() =>
-  //     store.dispatch({
-  //       type: "CANCEL_WATCHER"
-  //     })
-  //   )
-  //   .then(() => {
-  //     for (let i = loop / 2 + 1; i <= loop; i++) {
-  //       store.dispatch({
-  //         type: "ACTION",
-  //         payload: i
-  //       })
-  //     }
-  //   })
+    for (let i = 1; i <= loop / 2; i++) {
+      setTimeout(
+        () =>
+          store.dispatch({
+            type: "ACTION",
+            payload: i
+          }),
+        0
+      )
+    }
 
-  const inputTask = Promise.resolve()
-    .then(() => {
-      for (let i = 1; i <= loop / 2; i++) {
-        store.dispatch({
-          type: "ACTION",
-          payload: i
-        })
-      }
-    }) // the watcher should be cancelled after this
-    // no further task should be forked after this
-    .then(() =>
+    setTimeout(() =>
       store.dispatch({
         type: "CANCEL_WATCHER"
+      }), 0)
+
+    for (let i = loop / 2 + 1; i <= loop; i++) {
+      store.dispatch({
+        type: "ACTION",
+        payload: i
       })
-    )
-    .then(() => {
-      for (let i = loop / 2 + 1; i <= loop; i++) {
-        store.dispatch({
-          type: "ACTION",
-          payload: i
-        })
-      }
-    })
+    }
 
-  const a = Effect.runPromise(Fiber.join(mainTask))
+    await Effect.runPromise(Fiber.await(sonnet.fiber))
 
-  return Promise.all([a, inputTask]).then(() => {
-    // takeEvery must fork a worker on each action
     expect(actual).toEqual([
       ["a1", "a2", 1],
       ["a1", "a2", 2],
@@ -106,30 +78,92 @@ it("takeEvery", () => {
       ["a1", "a2", 5]
     ])
   })
-})
-it.skip("takeEvery: pattern END", () => {
-  const middleware = sagaMiddleware()
-  const store = createStore(() => ({}), {}, applyMiddleware(middleware))
-  const mainTask = middleware.run(saga)
-  let task
 
-  function* saga() {
-    task = yield takeEvery("ACTION", fnToCall)
-  }
+  /**
+   * @see https://github.com/redux-saga/redux-saga/blob/01f425c/packages/core/__tests__/sagaHelpers/takeEvery.js#L53
+   *
+   * XXX: Is there a way to share the constructed service without a `ManagedRuntime`?
+   */
+  it("pattern END", async () => {
+    class Service extends Effect.Service<Service>()("Service", {
+      effect: Effect.Do.pipe(
+        Effect.bind(
+          "task",
+          () => Ref.make(Option.none<Fiber.RuntimeFiber<void, never>>())
+        ),
+        Effect.bind("called", () => Ref.make(false))
+      )
+    }) {}
 
-  let called = false
+    const runtime = ManagedRuntime.make(Service.Default)
 
-  function* fnToCall() {
-    called = true
-  }
+    const fnToCall = () =>
+      Effect.gen(function*() {
+        const { called } = yield* Service
+        yield* Ref.set(called, true)
+      })
 
-  store.dispatch(END)
-  store.dispatch({
-    type: "ACTION"
-  })
-  return mainTask.toPromise().then(() => {
-    // should finish takeEvery task on END
-    expect(task.isRunning()).toBe(false) // should not call function if finished with END
+    const saga = Effect.gen(function*() {
+      const { task } = yield* Service
+      yield* pipe(
+        Operators.takeEvery(Operators.ofType("ACTION"), fnToCall),
+        Effect.flatMap((fiber) =>
+          pipe(
+            Ref.set(task, Option.some(fiber)),
+            Effect.andThen(() => Fiber.await(fiber))
+          )
+        )
+      )
+    })
+
+    const sonnet = Sonnet.make(
+      saga,
+      Layer.mergeAll(
+        Sonnet.defaultLayer,
+        Service.Default
+      ),
+      runtime.memoMap
+    )
+
+    const store = applyMiddleware(sonnet)(createStore)(() => {})
+
+    setTimeout(() =>
+      store.dispatch({
+        type: "ACTION"
+      }), 0)
+
+    const checkStatus = (pred: (self: FiberStatus.FiberStatus) => boolean) =>
+      pipe(
+        Fiber.status(sonnet.fiber),
+        Effect.flatMap(
+          (status) =>
+            pred(status)
+              ? Effect.succeed(status._tag)
+              : Effect.fail(void 0 as void)
+        ),
+        Effect.eventually
+      )
+
+    const isRunning = await Effect.runPromise(
+      checkStatus(FiberStatus.isRunning)
+    )
+    expect(isRunning).toBe("Running")
+
+    const isSuspended = await Effect.runPromise(
+      checkStatus(FiberStatus.isSuspended)
+    )
+    expect(isSuspended).toBe("Suspended")
+
+    await Effect.runPromise(Fiber.interrupt(sonnet.fiber))
+    await Effect.runPromise(Fiber.await(sonnet.fiber))
+
+    const status = await Effect.runPromise(Fiber.status(sonnet.fiber))
+    expect(status).toBe(FiberStatus.done)
+
+    const called = await pipe(
+      Service.pipe(Effect.andThen(({ called }) => pipe(called, Ref.get))),
+      runtime.runPromise
+    )
 
     expect(called).toBe(false)
   })

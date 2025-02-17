@@ -77,11 +77,11 @@ export const make = <R>(
     return yield* pipe(
       processor(
         action.stream.pipe(
-          Stream.tap((x) => Effect.log("[Stanza] Got action:", x))
+          Stream.tap((x) => Effect.logTrace("[Stanza] Got action:", x))
         ),
         state
       ),
-      Stream.tap((x) => Effect.log("[stanza] output", x)),
+      Stream.tap((x) => Effect.logTrace("[stanza] output", x)),
       Stream.runIntoQueue(dispatch.queue)
     )
   })

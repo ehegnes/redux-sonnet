@@ -18,6 +18,7 @@
     "dtslint": "dtslint dtslint",
     "check": "tsc -b tsconfig.json",
     "test": "vitest",
+    "bench": "vitest bench",
     "coverage": "vitest --coverage"
   },
   "keywords": [],

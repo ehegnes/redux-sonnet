@@ -80,7 +80,11 @@ export const ofType: <T extends string>(
  * @since 0.0.0
  * @category utils
  */
-export const select: <State, Result, Params extends Array<unknown> = []>(
+export const select: <
+  State,
+  Result = State,
+  Params extends Array<unknown> = []
+>(
   selector?: Selector<State, Result, Params> | undefined,
   ...params: [Params] extends [never] ? [] : Params
 ) => Effect.Effect<Result, never, SonnetService> = internal.select
@@ -189,12 +193,12 @@ export const takeFrom: {
  * @since 0.0.0
  * @category utils
  */
-export const takeEvery: <Params extends Array<unknown>>(
+export const takeEvery: <Params extends Array<unknown>, R>(
   pred: Predicate.Predicate<Action>,
   effect: (
     action: Action,
     ...params: Params
-  ) => Effect.Effect<void, never, never>,
+  ) => Effect.Effect<void, never, R>,
   ...params: Params
-) => Effect.Effect<Fiber.RuntimeFiber<void, never>, never, SonnetService> =
+) => Effect.Effect<Fiber.RuntimeFiber<void, never>, never, SonnetService | R> =
   internal.takeEvery

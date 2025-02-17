@@ -1,17 +1,8 @@
 import { assert, describe, expect, it } from "@effect/vitest"
-// import deferred from "@redux-saga/deferred"
-import { Effect, Fiber, Layer, Logger, LogLevel, pipe } from "effect"
-import type { Middleware, Reducer } from "redux"
+import { Channel, Effect, Fiber, Layer, Logger, LogLevel, pipe } from "effect"
+import type { Reducer } from "redux"
 import { applyMiddleware, legacy_createStore as createStore } from "redux"
 import { Operators, Sonnet } from "redux-sonnet"
-
-const thunk: Middleware<void, any, any> = () => (next) => (action) => {
-  if (typeof action.then === "function") {
-    return action
-  }
-
-  next(action)
-}
 
 describe("put", () => {
   it.effect("saga put handling", () =>
@@ -40,7 +31,9 @@ describe("put", () => {
 
       yield* Fiber.join(sonnet.fiber)
 
-      assert.deepStrictEqual(actual, expected)
+      yield* Effect.promise(() =>
+        expect.poll(() => actual).toStrictEqual(expected)
+      )
     }))
 
   /**
@@ -54,22 +47,30 @@ describe("put", () => {
         put: (it) => buffer.push(it),
         take: () => buffer.shift()
       }
-      const chan = channel(spyBuffer)
-      const sonnet = Sonnet.make(Sonnet.defaultLayer)
-      applyMiddleware(sonnet.middleware)(createStore)(() => {})
 
       const genFn = (arg: string) =>
         Effect.gen(function*() {
-          // yield io.put(chan, arg)
-          yield* Operators.put(arg)
-          yield io.put(chan, "2")
+          yield* Channel.succeed(arg).pipe(
+            Channel.pipeTo(chan),
+            Channel.runDrain
+          )
+          yield* Channel.succeed(arg).pipe(
+            Channel.pipeTo(chan),
+            Channel.runDrain
+          )
         })
 
-      const task = sagaMiddleware.run(genFn, "arg")
-      const expected = ["arg", 2]
-      yield* Fiber.join(task)
+      const sonnet = Sonnet.make(genFn("arg"), Sonnet.defaultLayer)
 
-      assert.equal(buffer, expected)
+      applyMiddleware(sonnet)(createStore)(() => {})
+
+      const expected = ["arg", "2"]
+
+      yield* Fiber.join(sonnet.fiber)
+
+      yield* Effect.promise(() =>
+        expect.poll(() => buffer).toStrictEqual(expected)
+      )
     }))
 
   /**
@@ -100,7 +101,7 @@ describe("put", () => {
         Sonnet.defaultLayer
       )
 
-      applyMiddleware(thunk, sonnet)(createStore)(() => {})
+      applyMiddleware(sonnet)(createStore)(() => {})
 
       const expected = ["arg", "2"]
       yield* Fiber.join(sonnet.fiber)
@@ -183,7 +184,7 @@ describe("put", () => {
 
       const sonnet = Sonnet.make(genFn("arg"), Sonnet.defaultLayer)
 
-      applyMiddleware(thunk, sonnet)(createStore)(reducer)
+      applyMiddleware(sonnet)(createStore)(reducer)
 
       /**
        * XXX: `Cause` is prepending "Error: ".

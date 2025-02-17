@@ -3,10 +3,10 @@ title: Patterns
 description: Patterns and anti-patterns from Redux Saga
 ---
 
-## Looping Forever
+## Looping
 
 In Redux Saga a common pattern for looping is as follows:
-```javascript
+```javascript {2}
 function* watcher() {
   while (true) {
     const action = yield take(ACTION)
@@ -19,10 +19,10 @@ function* worker(payload) {
 }
 ```
 
-The declarative nature of
-[`Effect.forever`](https://effect-ts.github.io/effect/effect/Effect.ts.html#forever)
-is more appropriate:
-```ts twoslash
+In Redux Sonnet, the declarative nature of [`Effect.forever`][effect-forever] is
+more appropriate:
+
+```ts twoslash {10}
 /// <reference types="effect" />
 // @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
 // ---cut---
@@ -38,3 +38,52 @@ const watcher = Effect.gen(function*(){
   Effect.forever
 )
 ```
+
+## Interruption
+
+Redux Saga provides a specialized `END` action for terminating running "effects."
+
+```javascript {10}
+import { END } from 'redux-saga'
+import { takeEvery } from 'redux-saga/effects'
+
+function* root() {
+  yield takeEvery("ACTION", worker)
+}
+
+function* worker(payload) { /* ... */}
+
+store.dispatch(END)
+```
+
+In Redux Sonnet, we instead may interrupt the forked fiber responsible for
+managing the root Stanza. There is no concept of a special action.
+
+See
+[`packages/redux-sonnet/test/redux-saga/operators/takeEvery.test.ts`][takeEvery-test]
+for additional exemplification.
+
+```ts twoslash {14}
+/// <reference types="effect" />
+// @paths: {"redux-sonnet": ["../packages/redux-sonnet/src"], "redux-sonnet/*": ["../packages/redux-sonnet/src/*"]}
+// ---cut---
+import { Effect, Fiber, pipe } from "effect"
+import { Sonnet, Operators } from "redux-sonnet"
+
+declare const worker: (action: unknown) => Effect.Effect<void, never, never>
+
+const root = Effect.gen(function*(){
+  yield* Operators.takeEvery(Operators.ofType('ACTION'), worker)
+})
+
+const sonnet = Sonnet.make(root, Sonnet.defaultLayer)
+
+await pipe(
+  sonnet.fiber,
+  Fiber.interrupt,
+  Effect.runPromise,
+)
+```
+
+[effect-forever]: https://effect-ts.github.io/effect/effect/Effect.ts.html#forever
+[takeEvery-test]: https://github.com/ehegnes/redux-sonnet/blob/main/packages/redux-sonnet/test/redux-saga/operators/takeEvery.test.ts

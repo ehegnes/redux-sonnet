@@ -51,8 +51,8 @@ const Prototype = {
 } as const
 
 const makeProto = <LA, LE>(
-  rootEffect: Effect.Effect<void, never, LA>,
-  layer: Layer.Layer<LA | Sonnet.Sonnet.Context, LE, never>,
+  rootEffect: Effect.Effect<void, never, LA | Sonnet.SonnetService>,
+  layer: Layer.Layer<LA | Sonnet.SonnetService, LE, never>,
   memoMap?: Layer.MemoMap | undefined
 ): Sonnet.Sonnet<LA, LE> => {
   const runtime = ManagedRuntime.make(
@@ -62,10 +62,10 @@ const makeProto = <LA, LE>(
 
   // XXX: is it okay to fork here?
   const fiber = runtime.runFork(rootEffect.pipe(
-    Effect.onInterrupt((a) => Effect.logError("rootEffect interrupted", a)),
-    Effect.onExit((a) => Effect.logError("rootEffect interrupted", a)),
-    Effect.onError((a) => Effect.logError("rootEffect errored", a)),
-    Effect.catchAll((a) => Effect.logError("rootEffect caught", a))
+    Effect.onInterrupt((a) => Effect.logTrace("rootEffect interrupted", a)),
+    Effect.onExit((a) => Effect.logTrace("rootEffect interrupted", a)),
+    Effect.onError((a) => Effect.logTrace("rootEffect errored", a)),
+    Effect.catchAll((a) => Effect.logTrace("rootEffect caught", a))
   ))
 
   const middleware: Sonnet.Sonnet.Middleware = function(api: MiddlewareAPI) {
@@ -94,12 +94,12 @@ const makeProto = <LA, LE>(
       const { dispatch: { stream } } = yield* Sonnet.SonnetService
 
       yield* Effect.addFinalizer((exit) =>
-        Effect.log(`[dispatcher] finalized. Exit status: ${exit._tag}`)
+        Effect.logTrace(`[dispatcher] finalized. Exit status: ${exit._tag}`)
       )
 
       return yield* pipe(
         stream,
-        Stream.tap((take) => Effect.log("[dispatcher] take", take)),
+        Stream.tap((take) => Effect.logTrace("[dispatcher] take", take)),
         Stream.flattenTake,
         Stream.tap((x) => Effect.logTrace("[dispatcher] publishing", x)),
         Stream.mapEffect(dispatch),
@@ -196,10 +196,10 @@ const makeProto = <LA, LE>(
 }
 
 export const make = <LA, LE>(
-  rootEffect: Effect.Effect<void, never, LA>,
-  layer: Layer.Layer<LA | Sonnet.Sonnet.Context, LE, never>,
+  rootEffect: Effect.Effect<void, never, LA | Sonnet.SonnetService>,
+  layer: Layer.Layer<LA | Sonnet.SonnetService, LE, never>,
   memoMap?: Layer.MemoMap | undefined
-): Sonnet.Sonnet<LA, LE> =>
+): Sonnet.Sonnet<Exclude<LA, Sonnet.SonnetService>, LE> =>
   makeProto(
     rootEffect,
     layer,

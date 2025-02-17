@@ -157,10 +157,10 @@ export declare namespace Sonnet {
  * @category constructors
  */
 export const make: <LA, LE>(
-  rootEffect: Effect.Effect<void, never, LA>,
-  layer: Layer.Layer<LA | Sonnet.Context, LE, never>,
+  rootEffect: Effect.Effect<void, never, LA | SonnetService>,
+  layer: Layer.Layer<LA | SonnetService, LE, never>,
   memoMap?: Layer.MemoMap | undefined
-) => Sonnet<LA, LE> = internal.make
+) => Sonnet<Exclude<LA, SonnetService>, LE> = internal.make
 
 /**
  * Returns `true` if the specified value is a `Sonnet`, `false` otherwise.

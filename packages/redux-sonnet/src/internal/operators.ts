@@ -2,6 +2,7 @@ import type { Selector } from "@reduxjs/toolkit"
 import type { Chunk } from "effect"
 import {
   Channel,
+  Console,
   Effect,
   Match,
   Option,
@@ -174,13 +175,14 @@ export const takeFrom = dual<
 )
 
 export const takeEvery = <
-  Params extends Array<unknown>
+  Params extends Array<unknown>,
+  R
 >(
   pred: Predicate.Predicate<Action>,
   effect: (
     action: Action,
     ...params: Params
-  ) => Effect.Effect<void, never, never>,
+  ) => Effect.Effect<void, never, R>,
   ...params: Params
 ) =>
   pipe(
@@ -188,13 +190,10 @@ export const takeEvery = <
     Effect.andThen(({ action: { stream } }) =>
       stream.pipe(
         Stream.filter(pred),
-        Stream.runForEach((action) =>
-          pipe(
-            effect(action, ...params),
-            Effect.andThen(() => Effect.log("EVERY"))
-          )
+        Stream.runForEach((action) => effect(action, ...params)),
+        Effect.onInterrupt((fibers) =>
+          Effect.logTrace("[takeEvery] interrupted", fibers)
         ),
-        Effect.onInterrupt((fibers) => Effect.log("Cleanup completed", fibers)),
         Effect.fork
       )
     )

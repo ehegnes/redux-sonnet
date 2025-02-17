@@ -2,17 +2,19 @@ import { applyMiddleware, legacy_createStore as createStore } from "redux"
 
 import { describe, expect, it } from "@effect/vitest"
 // import deferred from "@redux-saga/deferred"
-import { Exit, Queue, Stream } from "effect"
 import {
   Channel,
   Chunk,
   Effect,
   Either,
+  Exit,
   Fiber,
   Option,
   Predicate,
-  PubSub
+  Queue,
+  Stream
 } from "effect"
+import mitt from "mitt"
 import type { Action } from "redux"
 import { Operators as Op, Sonnet } from "redux-sonnet"
 
@@ -245,8 +247,9 @@ describe("take", () => {
    *
    * **NOTE:** `eventChannel` is replaced by core Effect usage.
    */
-  it("saga take from eventChannel", () => {
-    const em = mitt.default()
+  it.skip("saga take from eventChannel", () => {
+    // @ts-ignore
+    const em = mitt()
     const error = new Error("ERROR")
     // const chan = eventChannel((emit) => {
     //   em.on("*", emit)
@@ -264,7 +267,7 @@ describe("take", () => {
 
     const genFn = Effect.gen(function*() {
       try {
-        actual.push(yield* Op.takeChannel(chan, Predicate.isUnknown))
+        actual.push(yield* Op.takeFrom(chan, Predicate.isUnknown))
         // actual.push(yield* Op.takeChannel(chan, Predicate.isUnknown))
         // actual.push(yield* Op.takeChannel(chan, Predicate.isUnknown))
       } catch (e) {

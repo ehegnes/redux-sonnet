@@ -25,6 +25,7 @@ export interface Stanza<R = never>
     Pipeable.Pipeable,
     Effect.Effect<void, never, Sonnet.SonnetService | R>
 {
+  // XXX: need to add support for isStanza
   // [TypeId]: TypeId
 }
 
@@ -83,3 +84,9 @@ export const fromStream: <R>(
 export const fromEffect: <R>(
   self: Effect.Effect<Action, never, R>
 ) => Effect.Effect<void, never, Sonnet.SonnetService | R> = internal.fromEffect
+
+/**
+ * @category refinements
+ * @since 0.0.0
+ */
+export const isStanza: (u: unknown) => u is Stanza = internal.isStanza
