@@ -51,6 +51,8 @@ export const bufferActions = dual<
     })
   ))
 
+const a = bufferActions({})
+
 /**
  * Constructs a `Stanza` from a `effect/Stream` processor.
  *

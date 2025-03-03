@@ -114,9 +114,9 @@ export const put: <A extends Action>(
  * @since 0.0.0
  * @category utils
  */
-export const unsafeTake: (
-  pred: Predicate.Predicate<Action>
-) => Effect.Effect<Action, never, SonnetService> = internal.unsafeTake
+export const unsafeTake: <A extends Action>(
+  pred: Predicate.Refinement<Action, A>
+) => Effect.Effect<A, never, SonnetService> = internal.unsafeTake
 
 /**
  * Maybe take a single `Action` matching the given predicate.
@@ -133,9 +133,9 @@ export const unsafeTake: (
  * @since 0.0.0
  * @category utils
  */
-export const take: (
-  pred: Predicate.Predicate<Action>
-) => Effect.Effect<Option.Option<Action>, never, SonnetService> = internal.take
+export const take: <A extends Action>(
+  pred: Predicate.Refinement<Action, A>
+) => Effect.Effect<Option.Option<A>, never, SonnetService> = internal.take
 
 /**
  * Optionally take from the given source matching the given predicate.
@@ -193,8 +193,8 @@ export const takeFrom: {
  * @since 0.0.0
  * @category utils
  */
-export const takeEvery: <Params extends Array<unknown>, R>(
-  pred: Predicate.Predicate<Action>,
+export const takeEvery: <A extends Action, Params extends Array<unknown>, R>(
+  pred: Predicate.Refinement<Action, A>,
   effect: (
     action: Action,
     ...params: Params

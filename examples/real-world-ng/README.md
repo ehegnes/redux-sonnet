@@ -1,50 +1,35 @@
-# React + TypeScript + Vite
+# "Real World" Example Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+> [!WARNING]  
+> This example project is a work-in-progress.
 
-Currently, two official plugins are available:
+This application serves as a dogfooding playground for `redux-sonnet`. It is
+based loosely on [Redux Saga's `examples/real-world`
+application][redux-saga-real-world], although this is written in TypeScript
+rather than JavaScript and makes use of substantially more modern supporting
+software:
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- [Nix / Flakes][nix-flakes]: for reproducible development environment
+  instantiation
+- [`@octokit/rest.js`][octokit-rest]: for querying GitHub data
+- [`vite`][vite]: for HMR, transpilation, bundling, etc. and CORS proxy server
+- [`wouter`][wouter]: for routing
 
-## Expanding the ESLint configuration
+## Environment Setup
+- Install [Nix with Flakes][nix-flakes] support. See
+  [Determinate Nix Installer][determinate-nix] for non-NixOS systems.
+- Install and configue [direnv][direnv].
+- *(optional)* configure `VITE_PORT` (default: 3000) environment variable to
+  adjust development server port.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+## Targets
+| Target | Description |
+| ------ | ----------- |
+| `dev`  | Start HMR server and GitHub proxy on `http://localhost:${VITE_PORT}` |
 
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
-```
-
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
-
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+[determinate-nix]: https://github.com/DeterminateSystems/nix-installer
+[direnv]: https://github.com/direnv/direnv
+[nix-flakes]: https://nixos.wiki/wiki/flakes
+[octokit-rest]: https://github.com/octokit/rest.js/
+[redux-saga-real-world]: https://github.com/redux-saga/redux-saga/tree/main/examples/real-world
+[wouter]: https://github.com/molefrog/wouter

@@ -2,7 +2,6 @@ import type { Selector } from "@reduxjs/toolkit"
 import type { Chunk } from "effect"
 import {
   Channel,
-  Console,
   Effect,
   Match,
   Option,
@@ -57,9 +56,9 @@ export const put = <A extends Action>(self: A) =>
     Effect.as(self.type)
   )
 
-export const unsafeTake = (
-  pred: Predicate.Predicate<Action>
-): Effect.Effect<Action, never, SonnetService> =>
+export const unsafeTake = <A extends Action>(
+  pred: Predicate.Refinement<Action, A>
+): Effect.Effect<A, never, SonnetService> =>
   pipe(
     SonnetService,
     Effect.andThen(({ action }) =>
@@ -72,9 +71,9 @@ export const unsafeTake = (
     )
   )
 
-export const take = (
-  pred: Predicate.Predicate<Action>
-): Effect.Effect<Option.Option<Action>, never, SonnetService> =>
+export const take = <A extends Action>(
+  pred: Predicate.Refinement<Action, A>
+): Effect.Effect<Option.Option<A>, never, SonnetService> =>
   pipe(
     SonnetService,
     Effect.andThen(({ action }) =>
@@ -175,10 +174,11 @@ export const takeFrom = dual<
 )
 
 export const takeEvery = <
+  A extends Action,
   Params extends Array<unknown>,
   R
 >(
-  pred: Predicate.Predicate<Action>,
+  pred: Predicate.Refinement<Action, A>,
   effect: (
     action: Action,
     ...params: Params

@@ -10,7 +10,7 @@ const selectItemName = (state: RootState, itemName: string) => itemName
 // Create the selector and then annotate it:
 const selectItemIndex: Selector<RootState, number, [string]> = createSelector(
   [selectItems, selectItemName],
-  (items, itemName) => R.get(items, itemName)
+  (items, itemName) => R.get(items, itemName),
 )
 
 // Usage:

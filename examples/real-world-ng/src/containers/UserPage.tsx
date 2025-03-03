@@ -1,105 +1,100 @@
-import React, { Component } from 'react'
-import PropTypes from 'prop-types'
-import { connect } from 'react-redux'
-import { loadUserPage, loadMoreStarred } from '../actions'
-import User from '../components/User'
-import Repo from '../components/Repo'
-import List from '../components/List'
-import { zip } from 'lodash/array'
-import { findKey } from 'lodash/object'
-import { useLocation } from 'react-router'
+import React, { Component, useCallback, useEffect } from "react"
+import PropTypes from "prop-types"
+import { connect, useSelector } from "react-redux"
+import { loadUserPage, loadMoreStarred } from "../actions"
+import { UserView } from "../components/UserView.js"
+import { RepoView } from "../components/RepoView.js"
+import { ListView } from "../components/ListView.js"
+import { useLocation, useRoute } from "wouter"
+import { LOAD_MORE_STARRED, LOAD_USER_PAGE } from "../actions.js"
+import { useAppDispatch, useAppSelector } from "../store/hooks.js"
+import { selectUser } from "../reducers/selectors.js"
+import * as O from "effect/Option"
+import * as I from "effect/Iterable"
+import * as A from "effect/Array"
+import { Repo, User } from "../models.js"
 
-UserPage.propTypes = {
-  user: PropTypes.object,
-  starredPagination: PropTypes.object,
-  starredRepos: PropTypes.array.isRequired,
-  starredRepoOwners: PropTypes.array.isRequired,
-  loadUserPage: PropTypes.func.isRequired,
-  loadMoreStarred: PropTypes.func.isRequired,
+// UserPage.propTypes = {
+//   user: PropTypes.object,
+//   starredPagination: PropTypes.object,
+//   starredRepos: PropTypes.array.isRequired,
+//   starredRepoOwners: PropTypes.array.isRequired,
+//   loadUserPage: PropTypes.func.isRequired,
+//   loadMoreStarred: PropTypes.func.isRequired,
+// }
+
+interface UserPageProps {
+  owner: string
 }
 
+export const UserPage = (props: UserPageProps) => {
+  const { owner } = props
+  const dispatch = useAppDispatch()
+  const user = useAppSelector((_) => selectUser(_, owner))
+  /**
+   * TODO: implement selector
+   */
+  const starredRepos: Repo[] = []
 
-export const UserPage = () => {
-  const login = useLocation()
+  useEffect(() => {
+    dispatch(LOAD_USER_PAGE(owner))
+  }, [dispatch, owner])
 
-  //constructor(props) {
-  //  super(props)
-  //  this.renderRepo = this.renderRepo.bind(this)
-  //  this.handleLoadMoreClick = this.handleLoadMoreClick.bind(this)
-  //}
+  const renderRepo = (repo: Repo) => <RepoView repo={repo} />
 
-  //UNSAFE_componentWillMount() {
-  //  this.props.loadUserPage(this.props.login)
-  //}
+  const handleLoadMoreClick = useCallback(() => {
+    dispatch(LOAD_MORE_STARRED(owner))
+  }, [dispatch, owner])
 
-  //UNSAFE_componentWillReceiveProps(nextProps) {
-  //  if (this.props.login !== nextProps.login) {
-  //    this.props.loadUserPage(nextProps.login)
-  //  }
-  //}
-
-  //handleLoadMoreClick() {
-  //  this.props.loadMoreStarred(this.props.login)
-  //}
-
-  //renderRepo([repo, owner]) {
-  //  return <Repo repo={repo} owner={owner} key={repo.fullName} />
-  //}
-
-    const { user, login } = props
-
-    if (!user) {
-      return (
-        <h1>
-          <i>Loading {login}’s profile...</i>
-        </h1>
-      )
-    }
-
-    const { starredRepos, starredRepoOwners, starredPagination } = this.props
-
-    return (
+  return O.match(user, {
+    onNone: () => (
+      <h1>
+        <i>Loading {owner}'s profile...</i>
+      </h1>
+    ),
+    onSome: (user) => (
       <div>
-        <User user={user} />
+        <UserView user={user} />
         <hr />
-        <List
-          renderItem={this.renderRepo}
-          items={zip(starredRepos, starredRepoOwners)}
-          onLoadMoreClick={this.handleLoadMoreClick}
-          loadingLabel={`Loading ${login}’s starred...`}
-          {...starredPagination}
+        <ListView
+          renderItem={renderRepo}
+          items={starredRepos}
+          onLoadMoreClick={handleLoadMoreClick}
+          loadingLabel={`Loading ${owner}'s starred...`}
+          nextPageUrl="TODO: this should not exist"
+          isFetching={false} // TODO: hook up to trigger action
+          pageCount={0} // TODO: whew
         />
       </div>
-    )
-  }
-}
-
-function mapStateToProps(state) {
-  const { login } = state.router.params
-  const {
-    pagination: { starredByUser },
-    entities: { users, repos },
-  } = state
-
-  const starredPagination = starredByUser[login] || { ids: [] }
-  const starredRepos = starredPagination.ids.map((id) => repos[id])
-  const starredRepoOwners = starredRepos.map((repo) => users[repo.owner])
-
-  var userid = findKey(users, (user) => {
-    return user.login === login
+    ),
   })
-
-  return {
-    login,
-    starredRepos,
-    starredRepoOwners,
-    starredPagination,
-    user: users[userid],
-  }
 }
 
-export default connect(mapStateToProps, {
-  loadUserPage,
-  loadMoreStarred,
-})(UserPage)
+// function mapStateToProps(state) {
+// const { login } = state.router.params
+// const {
+// pagination: { starredByUser },
+// entities: { users, repos },
+// } = state
 
+// const starredPagination = starredByUser[login] || { ids: [] }
+// const starredRepos = starredPagination.ids.map((id) => repos[id])
+// const starredRepoOwners = starredRepos.map((repo) => users[repo.owner])
+
+// const userid = findKey(users, (user) => {
+// return user.login === login
+// })
+
+// return {
+// login,
+// starredRepos,
+// starredRepoOwners,
+// starredPagination,
+// user: users[userid],
+// }
+// }
+
+// export default connect(mapStateToProps, {
+//   loadUserPage,
+//   loadMoreStarred,
+// })(UserPage)

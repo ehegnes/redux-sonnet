@@ -1,18 +1,22 @@
-import { Action, type Selector } from "@reduxjs/toolkit"
-import { Effect, Fiber, flow, Option, pipe, Stream } from "effect"
-import { all, call, fork, put, select, take } from "redux-saga/effects"
-import { Operators, Stanza } from "redux-sonnet/src"
-import type { Actions } from "redux-sonnet/src"
-import * as actions from "../actions"
+import { Action } from "@reduxjs/toolkit"
+import { Effect, Tuple as T, Option, pipe, Stream } from "effect"
+import { Operators, Stanza } from "redux-sonnet"
+import { Actions } from "redux-sonnet"
+import {
+  REPO,
+  STARGAZERS,
+  STARRED,
+  USER,
+  NAVIGATE,
+  LOAD_USER_PAGE,
+} from "./actions.js"
 import {
   getRepo,
   getStargazersByRepo,
   getStarredByUser,
-  getUser
-} from "../reducers/selectors"
-
-// each entity defines 3 creators { request, success, failure }
-const { REPO, STARGAZERS, STARRED, USER } = actions
+  selectUser,
+} from "./reducers/selectors.js"
+import * as api from "./services/api.js"
 
 // // url for first page
 // // urls for next pages will be extracted from the successive loadMore* requests
@@ -35,40 +39,31 @@ const { REPO, STARGAZERS, STARRED, USER } = actions
 
 const fetchEntity = <
   Fulfilled,
-  Rejected,
   E,
   R,
-  Entity extends Actions.AsyncActionSet<string, Fulfilled>
+  Entity extends Actions.AsyncActionSet<string, string>,
 >(
   entity: Entity,
   apiFn: (url: string) => Effect.Effect<Fulfilled, E, R>,
   id: string,
-  url: any
+  url: string,
 ) =>
-  Effect.gen(function*() {
+  Effect.gen(function* () {
     yield* Operators.put(entity.trigger(id))
 
     const result = yield* pipe(
       apiFn(url),
       Effect.match({
         onFailure: entity.rejected,
-        onSuccess: (x) => entity.fulfilled(x)
-      })
+        onSuccess: (x) => entity.fulfilled(x),
+      }),
     )
 
     return yield* Operators.put(result)
   })
 
-// // yeah! we can also bind Generators
-// export const fetchUser = fetchEntity.bind(null, user, api.fetchUser)
-const fetchUser = fetchEntity.bind(null, USER, api.fetchUser)
-// export const fetchRepo = fetchEntity.bind(null, repo, api.fetchRepo)
-const fetchRepo = fetchEntity.bind(null, REPO, api.fetchRepo)
-// export const fetchStarred = fetchEntity.bind(null, starred, api.fetchStarred)
-const fetchStarred = fetchEntity.bind(null, STARRED, api.fetchStarred)
-// export const fetchStargazers = fetchEntity.bind(null, stargazers, api.fetchStargazers)
-const fetchStargazers = fetchEntity.bind(null, STARGAZERS, api.fetchStargazers)
-//
+export const fetchUser = fetchEntity.bind(null, USER, api.fetchUser)
+
 // // load user unless it is cached
 // function* loadUser(login, requiredFields) {
 //   const user = yield select(getUser, login)
@@ -78,12 +73,20 @@ const fetchStargazers = fetchEntity.bind(null, STARGAZERS, api.fetchStargazers)
 // }
 
 const loadUser = (login: string) =>
-  Effect.gen(function*() {
-    const user = yield* Operators.select(getUser, login)
+  Effect.gen(function* () {
+    const user = yield* Operators.select(selectUser, login)
+
+    const fetchUser = Effect.gen(function* () {
+      yield* Operators.put(USER.trigger(login))
+
+      const result = yield* pipe(api.fetchUser(login), Actions.match(USER))
+
+      return yield* Operators.put(result)
+    })
 
     yield* Option.match(user, {
-      onNone: () => fetchUser(login, null),
-      onSome: () => Effect.void
+      onNone: () => fetchUser,
+      onSome: () => Effect.void,
     })
   })
 
@@ -99,9 +102,26 @@ const loadUser = (login: string) =>
 //   if (!starredByUser || !starredByUser.pageCount || loadMore)
 //     yield call(fetchStarred, login, starredByUser.nextPageUrl || firstPageStarredUrl(login))
 // }
-const loadStarred = Effect.gen(function*() {
-  const starredByUser = yield* Operators.select(getStarredByUser)
-})
+
+declare const starredByUser: Option.Option<unknown>
+
+const loadStarred = (login: string, page: number | undefined = 1) =>
+  Effect.gen(function* () {
+    // const starredByUser = yield* Operators.select(selectStarredByUser, login)
+    yield* Operators.put(STARRED.trigger(login))
+
+    const starred = pipe(
+      api.fetchStarred$(login),
+      Stream.take(page),
+      Stream.runLast,
+      Effect.flatten,
+      Effect.map((x) => [x]),
+    )
+
+    const result = Actions.match(starred, STARRED)
+
+    return yield* Operators.put(result)
+  })
 //
 // // load next page of users who starred this repo unless it is cached
 // function* loadStargazers(fullName, loadMore) {
@@ -124,13 +144,14 @@ const loadStarred = Effect.gen(function*() {
 
 const watchNavigate$ = Stanza.make((action$) =>
   action$.pipe(
-    Stream.filter(actions.NAVIGATE.match),
+    Stream.filter(NAVIGATE.match),
     Stream.map((x) => x.payload.pathname),
     Stream.mapEffect((url) =>
-      Effect.sync(() => window.history.pushState(undefined, "", url))
+      Effect.sync(() => window.history.pushState(undefined, "", url)),
     ),
-    // XXX: is this right? can I use void?
-  )
+    /// XXX: use void; make redux-sonnet filter these for side-effect-only streams
+    Stream.map((x) => x as unknown as Action),
+  ),
 )
 
 // // Fetches data for a User : user data + starred repos
@@ -144,25 +165,35 @@ const watchNavigate$ = Stanza.make((action$) =>
 //   }
 // }
 
-const watchLoadUserPage$ = Stanza.make((action$) =>
-  action$.pipe(
-    Stream.filter(actions.LOAD_USER_PAGE.match),
-    Stream.mapEffect(({ payload: { login, requiredFields } }) =>
-      Effect.forkAll([
-        api.fetchUser(login).pipe(
-          Effect.map(USER.fulfilled),
-          Effect.catchAll((x) => Effect.succeed(USER.rejected(x)))
-        ),
-        api.fetchStarred(login).pipe(
-          Effect.map(STARRED.fulfilled),
-          Effect.catchAll(flow(STARRED.rejected, Effect.succeed))
-        )
-      ])
-    ),
-    Stream.mapEffect(Fiber.join),
-    Stream.flattenIterables
+const watchLoadUserPage = Effect.gen(function* () {
+  const login = yield* pipe(
+    Operators.unsafeTake(LOAD_USER_PAGE.match),
+    Effect.map((x) => x.payload),
   )
-)
+
+  yield* Effect.fork(loadUser(login))
+  yield* Effect.fork(loadStarred(login))
+}).pipe(Effect.forever)
+
+// const watchLoadUserPage = Stanza.make((action$) =>
+//   action$.pipe(
+//     Stream.filter(LOAD_USER_PAGE.match),
+//     Stream.mapEffect(({ payload: { login, requiredFields } }) =>
+//       Effect.forkAll([
+//         api.fetchUser(login).pipe(
+//           Effect.map(USER.fulfilled),
+//           Effect.catchAll((x) => Effect.succeed(USER.rejected(x)))
+//         ),
+//         api.fetchStarred(login).pipe(
+//           Effect.map(STARRED.fulfilled),
+//           Effect.catchAll(flow(STARRED.rejected, Effect.succeed))
+//         )
+//       ])
+//     ),
+//     Stream.mapEffect(Fiber.join),
+//     Stream.flattenIterables
+//   )
+// )
 
 // // Fetches data for a Repo: repo data + repo stargazers
 // function* watchLoadRepoPage() {
@@ -189,10 +220,16 @@ const watchLoadUserPage$ = Stanza.make((action$) =>
 //   }
 // }
 
-export const sonnet = {
-  watchNavigate$,
-  watchLoadUserPage$
-}
+export const rootStanza = Effect.all(
+  {
+    watchNavigate$,
+    watchLoadUserPage,
+  },
+  {
+    discard: true,
+    concurrency: "unbounded",
+  },
+)
 
 // export default function* root() {
 //   yield all([

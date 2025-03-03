@@ -1,112 +1,119 @@
-import React, { useEffect } from 'react'
-import * as Actions from '../actions/index.js'
-import { Repo } from '../components/Repo'
-import { User } from '../components/User'
-import { List } from '../components/List'
-import { useAppDispatch } from '../store/hooks.js'
-import { useParams } from 'react-router-dom'
+import React, { useEffect } from "react"
+import * as Actions from "../actions.js"
+import { RepoView } from "../components/RepoView.jsx"
+import { UserView } from "../components/UserView.jsx"
+import { useAppDispatch, useAppSelector } from "../store/hooks.js"
+import { ListView } from "../components/ListView.jsx"
+import { User } from "../models.js"
+import { selectRepo, selectUser } from "../reducers/selectors.js"
+import * as O from "effect/Option"
+import { constVoid } from "effect/Function"
 
 interface RepoPageProps {
-	repo: object | undefined;
-	fullName: string;
-	name: string;
-	owner: object;
-	stargazers: any[];
-	stargazersPagination: object;
-	loadRepoPage: () => void;
-	loadMoreStargazers: () => void;
+  owner: string
+  repo: string
 }
 
 export const RepoPage = (props: RepoPageProps) => {
-	const dispatch = useAppDispatch();
-	const params = useParams();
-	const { fullName } = props;
+  const dispatch = useAppDispatch()
+  const { owner, repo } = props
 
-	const { login, name } = params
+  /**
+   * TODO: select this data from store
+   */
+  const stargazers: User[] = []
 
-	//componentWillMount() {
-	//  this.props.loadRepoPage(this.props.fullName)
-	//}
+  const selectedRepo = useAppSelector((_) => selectRepo(_, owner, repo))
 
-	useEffect(() => {
-		const a = dispatch(Actions.LOAD_REPO_PAGE({ fullName, requiredFields: [] }))
-		return () => )
-	}, [])
+  //componentWillMount() {
+  //  this.props.loadRepoPage(this.props.fullName)
+  //}
 
-	//componentWillReceiveProps(nextProps) {
-	//  if (nextProps.fullName !== this.props.fullName) {
-	//    this.props.loadRepoPage(nextProps.fullName)
-	//  }
-	//}
+  useEffect(() => {
+    return () => {
+      dispatch(Actions.LOAD_REPO_PAGE({ owner, repo }))
+    }
+  }, [dispatch, owner, repo])
 
-	//handleLoadMoreClick() {
-	//  // eslint-disable-next-line no-console
-	//  console.log('load more', this.props.loadMoreStargazers)
-	//  this.props.loadMoreStargazers(this.props.fullName)
-	//}
+  //componentWillReceiveProps(nextProps) {
+  //  if (nextProps.fullName !== this.props.fullName) {
+  //    this.props.loadRepoPage(nextProps.fullName)
+  //  }
+  //}
 
-	//renderUser(user) {
-	//  return <User user={user} key={user.login} />
-	//}
+  //handleLoadMoreClick() {
+  //  // eslint-disable-next-line no-console
+  //  console.log('load more', this.props.loadMoreStargazers)
+  //  this.props.loadMoreStargazers(this.props.fullName)
+  //}
 
-	const { repo, owner } = props
+  //renderUser(user) {
+  //  return <User user={user} key={user.login} />
+  //}
 
-	if (!repo || !owner) {
-		return (
-			<h1>
-				<i>Loading {name} details...</i>
-			</h1>
-		)
-	}
+  const renderUser = (user: User) => <UserView user={user} key={user.id} />
 
-	const { stargazers, stargazersPagination } = props
+  if (O.isNone(selectedRepo)) {
+    return (
+      <h1>
+        <i>
+          Loading {owner}/{repo} details...
+        </i>
+      </h1>
+    )
+  }
 
-	return (
-		<div>
-			<Repo repo={repo} owner={owner} />
-			<hr />
-			<List
-				renderItem={this.renderUser}
-				items={stargazers}
-				onLoadMoreClick={this.handleLoadMoreClick}
-				loadingLabel={`Loading stargazers of ${name}...`}
-				{...stargazersPagination}
-			/>
-		</div>
-	)
-}
-}
+  /**
+   * TODO: implement
+   */
+  const onLoadMoreClick = constVoid
 
-function mapStateToProps(state) {
-	const { login, name } = state.router.params
-	const {
-		pagination: { stargazersByRepo },
-		entities: { users, repos },
-	} = state
-
-	const fullName = `${login}/${name}`
-	const stargazersPagination = stargazersByRepo[fullName] || { ids: [] }
-	const stargazers = stargazersPagination.ids.map((id) => users[id])
-
-	var userid = findKey(users, (user) => {
-		return user.login === login
-	})
-
-	var repoid = findKey(repos, (repo) => {
-		return repo.fullName === fullName
-	})
-
-	return {
-		fullName,
-		name,
-		stargazers,
-		stargazersPagination,
-		repo: repos[repoid],
-		owner: users[userid],
-	}
+  return (
+    <div>
+      <RepoView repo={selectedRepo.value} />
+      <hr />
+      <ListView
+        renderItem={renderUser}
+        items={stargazers}
+        onLoadMoreClick={onLoadMoreClick}
+        loadingLabel={`Loading stargazers of ${name}...`}
+        nextPageUrl="This is a poor prop idea"
+      />
+    </div>
+  )
 }
 
-export default connect(mapStateToProps, {
-	loadRepoPage,
-	loadMoreStargazers,
-})(RepoPage)
+// function mapStateToProps(state) {
+// 	const { login, name } = state.router.params
+// 	const {
+// 		pagination: { stargazersByRepo },
+// 		entities: { users, repos },
+// 	} = state
+//
+// 	const fullName = `${login}/${name}`
+// 	const stargazersPagination = stargazersByRepo[fullName] || { ids: [] }
+// 	const stargazers = stargazersPagination.ids.map((id) => users[id])
+//
+// 	var userid = findKey(users, (user) => {
+// 		return user.login === login
+// 	})
+//
+// 	var repoid = findKey(repos, (repo) => {
+// 		return repo.fullName === fullName
+// 	})
+//
+// 	return {
+// 		fullName,
+// 		name,
+// 		stargazers,
+// 		stargazersPagination,
+// 		repo: repos[repoid],
+// 		owner: users[userid],
+// 	}
+// }
+//
+// export default connect(mapStateToProps, {
+// 	loadRepoPage,
+// 	loadMoreStargazers,
+// })(RepoPage)
+//
