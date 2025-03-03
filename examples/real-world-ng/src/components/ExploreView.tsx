@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react"
-const GITHUB_REPO = "https://github.com/reduxjs/redux"
+const GITHUB_REPO = "https://github.com/ehegnes/redux-sonnet"
 
 interface ExploreProps {
   value: string

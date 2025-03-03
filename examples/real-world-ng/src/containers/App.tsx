@@ -1,21 +1,14 @@
-import React, { useCallback, useEffect, useMemo } from "react"
+import React, { useCallback, useEffect, useMemo, useState } from "react"
 import { ExploreView } from "../components/ExploreView.js"
 import { useAppDispatch, useAppSelector } from "../store/hooks.js"
-import { useLocation, useParams } from "react-router"
 import { selectErrorMessage } from "../reducers/selectors.js"
 import * as O from "effect/Option"
 import { pipe } from "effect"
+import { navigate } from "wouter/use-browser-location";
+import { useLocation, useParams } from "wouter"
 
-interface AppProps {
-  // injected by React Redux
-  inputValue: string
-  navigate: (nextValue: string) => void
-  // injected by react router
-  children: React.ReactNode
-}
-
-export const App = (props: AppProps) => {
-  const { children, inputValue } = props
+export const App = () => {
+  const [input, setInput] = useState("")
   const dispatch = useAppDispatch()
   const location = useLocation()
   const params = useParams()
@@ -31,7 +24,7 @@ export const App = (props: AppProps) => {
       //   }),
       // )
     }
-  }, [dispatch, location.pathname, params])
+  }, [dispatch, location, params])
 
   useEffect(() => {
     return () => {
@@ -43,7 +36,7 @@ export const App = (props: AppProps) => {
       //   }),
       // )
     }
-  }, [dispatch, location.pathname, params])
+  }, [dispatch, location, params])
 
   const handleDismissClick: React.MouseEventHandler<HTMLAnchorElement> =
     useCallback((e) => {
@@ -51,9 +44,9 @@ export const App = (props: AppProps) => {
       e.preventDefault()
     }, [])
 
-  const handleChange = useCallback(
-    (nextValue: string) => props.navigate(`/${nextValue}`),
-    [props],
+  const handleChange = useCallback((nextValue: string) =>
+    navigate(`/${nextValue}`),
+    [],
   )
 
   const renderErrorMessage = useCallback(
@@ -76,10 +69,11 @@ export const App = (props: AppProps) => {
 
   return (
     <div>
-      <ExploreView value={inputValue} onChange={handleChange} />
+      <ExploreView value={input} onChange={setInput} />
       <hr />
-      {errorMessageView}
-      {children}
+      <pre style={{ whiteSpace: "pre-wrap" }}>
+        {errorMessageView}
+      </pre>
     </div>
   )
 }

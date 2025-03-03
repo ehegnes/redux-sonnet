@@ -1,15 +1,18 @@
 import { createAction } from "@reduxjs/toolkit"
 import { Actions } from "redux-sonnet"
-import type { User, Repo } from "./models.js"
+import type { User } from "./models/user.js"
+import type { Repo } from "./models/repo.js"
 import { GithubError } from "./services/github.js"
+import { ParseError } from "effect/ParseResult"
+import { NoSuchElementException } from "effect/Cause"
 
-export const USER = Actions.make("USER")<string, User, GithubError>()
+export const USER = Actions.make("USER")<string, User, ParseError | GithubError>()
 export const REPO = Actions.make("REPO")<
   { owner: string; repo: string },
   Repo,
   GithubError
 >()
-export const STARRED = Actions.make("STARRED")<string, Repo[], GithubError>()
+export const STARRED = Actions.make("STARRED")<string, Repo[], ParseError | GithubError | NoSuchElementException>()
 export const STARGAZERS = Actions.make("STARGAZERS")<unknown, User[], unknown>()
 
 export const NAVIGATE = createAction<{ pathname: string }>("NAVIGATE")

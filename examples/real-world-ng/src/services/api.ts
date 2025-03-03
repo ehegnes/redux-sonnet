@@ -2,7 +2,8 @@ import "isomorphic-fetch"
 import { String as ST, Effect, flow, Stream, Struct } from "effect"
 import { Github, GithubError } from "./github.js"
 import { apply } from "effect/Function"
-import { Repo, User } from "../models.js"
+import { ParseError } from "effect/ParseResult"
+import { Repo, User } from "../models/index.js"
 
 const structureFullName = flow(ST.split("/"), ([owner, repo]) => ({
   owner,
@@ -11,43 +12,48 @@ const structureFullName = flow(ST.split("/"), ([owner, repo]) => ({
 
 export const fetchUser = (
   username: string,
-): Effect.Effect<User, GithubError, Github> =>
+): Effect.Effect<User.User, ParseError | GithubError, Github> =>
   Github.pipe(
     Effect.andThen((_) => _.wrap((_) => _.users.getByUsername)),
     Effect.flatMap(apply({ username })),
+    Effect.flatMap(User.decode)
   )
 
 export const fetchRepo = (
   fullName: string,
-): Effect.Effect<Repo, GithubError, Github> =>
+): Effect.Effect<Repo.Repo, ParseError | GithubError, Github> =>
   Github.pipe(
     Effect.andThen((_) => _.wrap((_) => _.repos.get)),
     Effect.flatMap(apply(structureFullName(fullName))),
+    Effect.flatMap(Repo.decode) 
   )
 
 export const fetchStarred = Github.pipe(
   Effect.andThen((_) => _.wrap((_) => _.activity.listReposStarredByUser)),
 )
 
-export const fetchStarred$ = (username: string) =>
+export const fetchStarred$ = (
+  username: string
+): Stream.Stream<Repo.Repo, GithubError | ParseError, Github> =>
   Github.pipe(
     Effect.andThen((_) =>
       _.stream((_, page) =>
         _.activity.listReposStarredByUser({ username, page }).then(
-          Struct.evolve({
-            data: (xs) => xs.map((x) => ("repo" in x ? x.repo : x)),
-          }),
-        ),
+          Struct.evolve({ data: (xs) => xs.map(Repo.decode), }),
+        )
       ),
     ),
-    Stream.unwrap,
+    Effect.map(Stream.flattenEffect({ concurrency: "unbounded" })),
+    Stream.unwrap
   )
 
 export const fetchStargazers = Github.pipe(
   Effect.andThen((_) => _.wrap((_) => _.activity.listStargazersForRepo)),
 )
 
-export const fetchStargazers$ = (fullName: string) =>
+export const fetchStargazers$ = (
+  fullName: string
+): Stream.Stream<User.User, ParseError | GithubError, Github> =>
   Github.pipe(
     Effect.andThen((_) =>
       _.stream((_, page) =>
@@ -58,10 +64,11 @@ export const fetchStargazers$ = (fullName: string) =>
           })
           .then(
             Struct.evolve({
-              data: (xs) => xs.map((x) => ("user" in x ? x.user : x)),
+              data: (xs) => xs.map(User.decode)
             }),
           ),
       ),
     ),
+    Effect.map(Stream.flattenEffect({ concurrency: "unbounded" })),
     Stream.unwrap,
   )

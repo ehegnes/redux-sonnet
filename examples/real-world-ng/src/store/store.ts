@@ -1,13 +1,16 @@
-import { Layer, Scope } from "effect"
+import { Layer } from "effect"
 import { Sonnet } from "redux-sonnet"
 import { rootReducer, RootState } from "../reducers/index.js"
 
-import { FetchHttpClient } from "@effect/platform"
 import { configureStore } from "@reduxjs/toolkit"
 import { rootStanza } from "../sagas.js"
+import { Github } from "../services/github.js"
 
 const createStore = (initialState: RootState | undefined = undefined) => {
-  const sonnet = Sonnet.make(rootStanza, Sonnet.defaultLayer)
+  const sonnet = Sonnet.make(rootStanza, Layer.mergeAll(
+    Sonnet.defaultLayer,
+    Github.Default,
+  ))
 
   const store = configureStore({
     reducer: rootReducer,

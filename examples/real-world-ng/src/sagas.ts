@@ -1,5 +1,5 @@
 import { Action } from "@reduxjs/toolkit"
-import { Effect, Tuple as T, Option, pipe, Stream } from "effect"
+import { Effect, Tuple as T, Option, pipe, Stream, Chunk } from "effect"
 import { Operators, Stanza } from "redux-sonnet"
 import { Actions } from "redux-sonnet"
 import {
@@ -17,6 +17,9 @@ import {
   selectUser,
 } from "./reducers/selectors.js"
 import * as api from "./services/api.js"
+import { Repo } from './models/repo.js'
+import { User } from "./models/user.js"
+import { Github, GithubError } from "./services/github.js"
 
 // // url for first page
 // // urls for next pages will be extracted from the successive loadMore* requests
@@ -79,7 +82,10 @@ const loadUser = (login: string) =>
     const fetchUser = Effect.gen(function* () {
       yield* Operators.put(USER.trigger(login))
 
-      const result = yield* pipe(api.fetchUser(login), Actions.match(USER))
+      const result = yield* pipe(
+        api.fetchUser(login),
+        Actions.match(USER),
+      )
 
       return yield* Operators.put(result)
     })
@@ -112,13 +118,11 @@ const loadStarred = (login: string, page: number | undefined = 1) =>
 
     const starred = pipe(
       api.fetchStarred$(login),
-      Stream.take(page),
-      Stream.runLast,
-      Effect.flatten,
-      Effect.map((x) => [x]),
+      Stream.runCollect,
+      Effect.map(Chunk.toArray)
     )
 
-    const result = Actions.match(starred, STARRED)
+    const result = yield* Actions.match(STARRED)(starred)
 
     return yield* Operators.put(result)
   })

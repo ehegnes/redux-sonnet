@@ -1,9 +1,6 @@
-import { ConfigProvider } from "effect"
+import { ConfigProvider, pipe } from "effect"
 
-const nestedConfigProvider = (prefix: string) =>
-  ConfigProvider.fromEnv().pipe(
-    ConfigProvider.nested(prefix),
-    ConfigProvider.constantCase,
-  )
-
-export const ViteConfigProvider = nestedConfigProvider("vite")
+export const ViteConfigProvider = pipe(
+    ConfigProvider.fromJson(import.meta.env),
+    ConfigProvider.constantCase
+)

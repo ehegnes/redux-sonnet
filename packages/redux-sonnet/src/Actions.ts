@@ -9,8 +9,7 @@ import type {
   PayloadActionCreator
 } from "@reduxjs/toolkit"
 import { createAction } from "@reduxjs/toolkit"
-import type { Effect } from "effect"
-import * as internal from "./internal/actions.js"
+import { Effect } from "effect"
 
 /**
  * @since 0.0.0
@@ -45,7 +44,7 @@ export interface AsyncActionSetWithPayload<
   >
 {
   fulfilled: ActionCreatorWithPayload<
-    internal.Defined<FulfilledPayload>,
+    Defined<FulfilledPayload>,
     `${Prefix}/fulfilled`
   >
   rejected: ActionCreatorWithPayload<
@@ -94,57 +93,26 @@ export const make = <
 })
 
 /**
+ * Gates a type T such that it cannot be `never`, `void`, or `undefined`.
+ */
+export type Defined<T> = [T] extends [never] | [undefined] | [void] ? never
+  : T
+
+/**
  * Analogous to {@link Effect.match} for an {@link AsyncActionSet}.
  *
  * @since 0.0.0
  * @category utils
+ * @todo Add dual API
  */
-export const match: {
-  <P extends string, A, E>(
-    action: AsyncActionSetWithPayload<P, any, A, E>
-  ): <R = never>(
-    self: Effect.Effect<internal.Defined<A>, internal.Defined<E>, R>
-  ) => Effect.Effect<
-    | ReturnType<
-      AsyncActionSetWithPayload<
-        P,
-        any,
-        internal.Defined<A>,
-        internal.Defined<E>
-      >["fulfilled"]
-    >
-    | ReturnType<
-      AsyncActionSetWithPayload<
-        P,
-        any,
-        internal.Defined<A>,
-        internal.Defined<E>
-      >["rejected"]
-    >,
-    never,
-    R
-  >
-  <P extends string, A, E, R = never>(
-    self: Effect.Effect<internal.Defined<A>, internal.Defined<E>, R>,
-    action: AsyncActionSetWithPayload<P, any, A, E>
-  ): Effect.Effect<
-    | ReturnType<
-      AsyncActionSetWithPayload<
-        P,
-        any,
-        internal.Defined<A>,
-        internal.Defined<E>
-      >["fulfilled"]
-    >
-    | ReturnType<
-      AsyncActionSetWithPayload<
-        P,
-        any,
-        internal.Defined<A>,
-        internal.Defined<E>
-      >["rejected"]
-    >,
-    never,
-    R
-  >
-} = internal.match
+export const match = <
+  P extends string,
+  A,
+  E
+>(
+  action: AsyncActionSetWithPayload<P, any, A, E>
+) =>
+  Effect.match({
+    onFailure: action.rejected,
+    onSuccess: action.fulfilled
+  })

@@ -16,11 +16,11 @@ export class GithubError extends Data.TaggedError("GithubError")<{
   readonly reason: unknown
 }> {}
 
-const baseUrl = `http://localhost:${VITE_PORT}/api/`
+const baseUrl = `http://localhost:${import.meta.env.VITE_PORT ?? 3000}/api/`
 
 export class Github extends Effect.Service<Github>()("app/Github", {
   effect: Effect.gen(function* () {
-    const token = yield* Config.redacted("token")
+    const token = yield* Config.redacted("vite-github-token")
     const octokit = new Octokit({ auth: Redacted.value(token), baseUrl })
 
     const rest = octokit.rest
