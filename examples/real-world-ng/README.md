@@ -32,4 +32,5 @@ software:
 [nix-flakes]: https://nixos.wiki/wiki/flakes
 [octokit-rest]: https://github.com/octokit/rest.js/
 [redux-saga-real-world]: https://github.com/redux-saga/redux-saga/tree/main/examples/real-world
+[vite]: https://vite.dev/
 [wouter]: https://github.com/molefrog/wouter
