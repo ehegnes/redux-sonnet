@@ -191,9 +191,6 @@ export const takeEvery = <
       stream.pipe(
         Stream.filter(pred),
         Stream.runForEach((action) => effect(action, ...params)),
-        Effect.onInterrupt((fibers) =>
-          Effect.logTrace("[takeEvery] interrupted", fibers)
-        ),
         Effect.fork
       )
     )

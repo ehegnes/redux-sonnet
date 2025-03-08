@@ -2,6 +2,7 @@ import { describe, expect, it } from "@effect/vitest"
 import {
   Cause,
   Effect,
+  Exit,
   Fiber,
   Layer,
   Logger,
@@ -10,102 +11,95 @@ import {
   Schedule,
   Stream
 } from "effect"
+import { constVoid } from "effect/Function"
 import { applyMiddleware, legacy_createStore as createStore } from "redux"
 import { Sonnet, Stanza } from "redux-sonnet"
 import { arrayReducer, INIT_ACTION } from "../utils.js"
 
 describe("error handling", () => {
   it("throw", async () => {
-    const actual: Array<string> = []
+    const actual: Array<unknown> = []
+
+    const pushError = (e: Array<unknown>) => Effect.sync(() => actual.push(e))
 
     const stanza = Effect.gen(function*() {
       yield* Effect.void
-      throw new Error("hello")
+      throw new Error("message")
     }).pipe(
-      Effect.parallelErrors,
-      Effect.catchAll(() => Effect.sync(() => actual.push("catch"))),
-      Effect.onInterrupt(() => Effect.sync(() => actual.push("interrupt"))),
-      Effect.onError(() => Effect.sync(() => actual.push("error")))
+      Effect.catchAll(() => pushError(["catch"])),
+      Effect.onInterrupt((hs) => pushError(["interrupt", hs])),
+      Effect.onError((e) => pushError(["error", e]))
     )
 
-    const sonnet = Sonnet.make(
-      stanza,
-      Layer.mergeAll(
-        Sonnet.defaultLayer,
-        Logger.minimumLogLevel(LogLevel.Trace)
-      )
-    )
+    const sonnet = Sonnet.make(stanza, Sonnet.defaultLayer)
 
-    applyMiddleware(sonnet)(createStore)(() => {})
+    applyMiddleware(sonnet)(createStore)(constVoid)
 
     await Effect.runPromise(Effect.exit(Fiber.await(sonnet.fiber)))
 
     await expect.poll(() => actual).toStrictEqual([
-      "error"
+      ["error", Cause.die(Error("message"))]
     ])
   })
 
   it("fiber interrupts when die", async () => {
     const actual: Array<unknown> = []
 
-    const s1 = Effect.gen(function*() {
-      yield* pipe(
-        Effect.die("Uh oh!"),
-        Effect.delay("20 millis")
-      )
-    })
+    const die = Effect.delay(
+      Effect.die("Uh oh!"),
+      "30 millis"
+    )
 
-    const s2 = Stanza.fromStream(
-      Stream.range(1, 3).pipe(
+    const work = Stanza.fromStream(
+      Stream.range(1, 5).pipe(
         Stream.schedule(Schedule.spaced("10 millis")),
         Stream.map((i) => ({ type: `ACTION-${i}` }))
       )
     )
 
+    const root = Effect.all([die, work], {
+      discard: true,
+      concurrency: "unbounded"
+    })
+
     const sonnet = Sonnet.make(
-      Effect.all([s1, s2], { discard: true, concurrency: "unbounded" }),
-      Layer.mergeAll(
-        Sonnet.defaultLayer,
-        Logger.minimumLogLevel(LogLevel.Trace)
-      )
+      root,
+      Sonnet.defaultLayer
     )
 
     applyMiddleware(sonnet)(createStore)(arrayReducer(actual))
 
-    await Effect.runPromise(Effect.exit(Fiber.join(sonnet.fiber)))
+    const exit = await Effect.runPromiseExit(Fiber.join(sonnet.fiber))
+
+    // expect(exit).toStrictEqual(Exit.void)
 
     expect(actual).toStrictEqual([
       INIT_ACTION,
-      { type: "ACTION-1" }
+      { type: "ACTION-1" },
+      { type: "ACTION-2" }
     ])
   })
 
   it("can stop propagation", async () => {
     const actual: Array<unknown> = []
 
-    const s1 = Effect.gen(function*() {
-      yield* pipe(
-        Effect.die("Uh oh!"),
-        Effect.delay("20 millis")
-      )
-    }).pipe(
-      Effect.catchAllCause((cause) => Effect.sync(() => actual.push(cause)))
-    )
+    const push = (x: unknown) => Effect.sync(() => actual.push(x))
 
     class E {
       readonly _tag = "E"
     }
 
-    const s2 = Effect.gen(function*() {
-      yield* pipe(
-        Effect.fail(new E()),
-        Effect.delay("10 millis")
-      )
-    }).pipe(
-      Effect.catchTag("E", (cause) => Effect.sync(() => actual.push(cause)))
-    )
+    const fail = Effect.delay(
+      Effect.fail(new E()),
+      "10 millis"
+    ).pipe(Effect.catchTag("E", push))
 
-    const s3 = Stanza.fromStream(
+    const die = Effect.delay(
+      Effect.die("Uh oh!"),
+      "20 millis"
+    ).pipe(Effect.catchAllCause(push))
+
+    const work = Stanza.fromStream(
       Stream.range(1, 3).pipe(
         Stream.schedule(Schedule.spaced("10 millis")),
         Stream.map((i) => ({ type: `ACTION-${i}` }))
@@ -113,17 +107,15 @@ describe("error handling", () => {
     )
 
     const sonnet = Sonnet.make(
-      Effect.all([s1, s2, s3], { discard: true, concurrency: "unbounded" }),
-      Layer.mergeAll(
-        Sonnet.defaultLayer,
-        Logger.minimumLogLevel(LogLevel.Trace)
-      )
+      Stanza.combine([fail, die, work]),
+      Sonnet.defaultLayer
     )
 
     applyMiddleware(sonnet)(createStore)(arrayReducer(actual))
 
-    await Effect.runPromise(Effect.exit(Fiber.join(sonnet.fiber)))
+    const exit = await Effect.runPromiseExit(Fiber.join(sonnet.fiber))
 
+    expect(exit).toStrictEqual(Exit.succeed(void 0))
     expect(actual).toStrictEqual([
       INIT_ACTION,
       new E(),

@@ -1,6 +1,7 @@
 import type { Action, MiddlewareAPI } from "@reduxjs/toolkit"
 import type { Scope, Take } from "effect"
 import {
+  Cause,
   Effect,
   Equal,
   Exit,
@@ -9,15 +10,16 @@ import {
   Layer,
   ManagedRuntime,
   pipe,
-  Predicate,
   Queue,
   Ref,
   Stream,
   SubscriptionRef,
   SynchronizedRef
 } from "effect"
+import { constVoid } from "effect/Function"
 import { pipeArguments } from "effect/Pipeable"
 import { hasProperty } from "effect/Predicate"
+import { Operators } from "redux-sonnet"
 import * as Sonnet from "../Sonnet.js"
 
 const SonnetSymbolKey = "redux-sonnet/Sonnet"
@@ -80,50 +82,41 @@ const makeProto = <LA, LE>(
     const offerState: Effect.Effect<void, never, Sonnet.SonnetService> = pipe(
       Sonnet.SonnetService,
       Effect.andThen(({ state: { ref } }) =>
+        SynchronizedRef.updateAndGetEffect(ref, () => getState)
+      )
+    )
+
+    const offerAction = (action: Action) =>
+      pipe(
+        Sonnet.SonnetService,
+        Effect.andThen(({ action: { queue } }) =>
+          Queue.offer(queue, action as Action)
+        )
+      )
+
+    const dispatcher = Sonnet.SonnetService.pipe(
+      Effect.andThen((_) =>
         pipe(
-          SynchronizedRef.updateAndGetEffect(ref, () => getState),
-          Effect.flatMap((newState) =>
-            Effect.logTrace("[state] offered", newState)
-          )
+          Stream.flattenTake(_.dispatch.stream),
+          Stream.mapEffect(dispatch),
+          Stream.runDrain
         )
       )
     )
 
-    const dispatcher = Effect.gen(function*() {
-      yield* Effect.logTrace("[dispatcher] starting...")
-      const { dispatch: { stream } } = yield* Sonnet.SonnetService
+    runtime.runPromiseExit(offerState)
+    runtime.runFork(dispatcher)
 
-      yield* Effect.addFinalizer((exit) =>
-        Effect.logTrace(`[dispatcher] finalized. Exit status: ${exit._tag}`)
-      )
-
-      return yield* pipe(
-        stream,
-        Stream.tap((take) => Effect.logTrace("[dispatcher] take", take)),
-        Stream.flattenTake,
-        Stream.tap((x) => Effect.logTrace("[dispatcher] publishing", x)),
-        Stream.mapEffect(dispatch),
-        Stream.runDrain
-      )
-    })
-
-    runtime.runPromiseExit(offerState).then(
-      (exit) =>
-        Exit.match(exit, {
-          onFailure: (cause) => {
-            throw new Error(`Could not offer state: ${cause.toString()}`)
-          },
-          onSuccess: () => {}
-        })
-    )
-    runtime.runFork(Effect.scoped(dispatcher))
+    const produce = (action: Action) =>
+      Effect.andThen(offerState, () => offerAction(action))
 
     return (next) => {
       return (action) => {
-        let result: any = undefined
+        const result = next(action)
 
-        if (Predicate.isObject(action)) {
-          result = next(action)
+        // No-op on non-action input
+        if (!Operators.isAction(action)) {
+          return result
         }
 
         /**
@@ -136,49 +129,15 @@ const makeProto = <LA, LE>(
          * - Should this become a Promise?
          *   - What's the point of backpressure if this just runs async?
          */
-        const actionResult = runtime.runPromiseExit(
-          pipe(
-            Sonnet.SonnetService,
-            Effect.andThen(({ action: { queue } }) =>
-              pipe(
-                Queue.offer(queue, action as Action),
-                Effect.flatMap(() =>
-                  Effect.logTrace("[action] offered", action)
-                )
-              )
-            )
-          )
-        )
+        const exit = runtime.runPromiseExit(produce(action as Action))
 
-        actionResult.then(
-          Exit.match({
-            onFailure: () => {
-              // XXX: do something
-            },
-            onSuccess: () => {
-              // XXX: do something (log?)
-              // wishing Effect had structured logs!
-            }
-          }),
-          (rej) => {
-            throw new Error(
-              `Could not offer action (this should never happen) ${rej.toString()}`
-            )
-          }
-        )
-
-        const finalOfferP = runtime.runPromiseExit(offerState)
-
-        finalOfferP.then((finalOfferResult) =>
-          Exit.match(finalOfferResult, {
-            onFailure: (cause) => {
-              // eslint-disable-next-line no-console
-              console.error("holy fuck", cause)
-            },
-            onSuccess: () => {
-            }
-          })
-        )
+        exit.then(Exit.match({
+          onFailure: (cause) => {
+            // eslint-disable-next-line no-console
+            console.error(Cause.pretty(cause))
+          },
+          onSuccess: constVoid
+        }))
 
         return result
       }
@@ -215,22 +174,11 @@ export const makeService = (
   options: Sonnet.Sonnet.Options
 ): Effect.Effect<Sonnet.Sonnet.Service, never, Scope.Scope> =>
   Effect.gen(function*() {
-    // XXX: hideous...
     const queue = options.backing ?? { strategy: "unbounded" }
     const capacity = queue.strategy === "unbounded" ? undefined : queue.capacity
 
-    /**
-     * Takes incoming actions from Redux
-     */
     const actionQueue = yield* Queue[queue.strategy]<Action>(capacity as any)
-    /**
-     * Dispatches actions from `Stanzas`
-     */
     const dispatchQueue = yield* Queue.unbounded<Take.Take<Action>>()
-
-    /**
-     * Takes incoming state from Reudx on each new action.
-     */
     const stateRef = yield* SubscriptionRef.make<any>({})
 
     const changes = yield* pipe(

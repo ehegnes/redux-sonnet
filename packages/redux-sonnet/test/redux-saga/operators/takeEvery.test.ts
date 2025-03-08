@@ -9,6 +9,8 @@ import {
   pipe,
   Ref
 } from "effect"
+import { constVoid } from "effect/Function"
+import { withConsoleLog } from "effect/Logger"
 import type { Action } from "redux"
 import { applyMiddleware, legacy_createStore as createStore } from "redux"
 import { Operators, Sonnet } from "redux-sonnet"
@@ -43,15 +45,17 @@ describe("takeEvery", () => {
       Sonnet.defaultLayer
     )
 
-    const store = applyMiddleware(sonnet)(createStore)(() => {})
+    const store = applyMiddleware(sonnet)(createStore)(constVoid)
 
     for (let i = 1; i <= loop / 2; i++) {
       setTimeout(
-        () =>
+        () => {
+          console.log({ i })
           store.dispatch({
             type: "ACTION",
             payload: i
-          }),
+          })
+        },
         0
       )
     }
@@ -62,6 +66,7 @@ describe("takeEvery", () => {
       }), 0)
 
     for (let i = loop / 2 + 1; i <= loop; i++) {
+      console.log({ i })
       store.dispatch({
         type: "ACTION",
         payload: i
@@ -125,7 +130,7 @@ describe("takeEvery", () => {
       runtime.memoMap
     )
 
-    const store = applyMiddleware(sonnet)(createStore)(() => {})
+    const store = applyMiddleware(sonnet)(createStore)(constVoid)
 
     setTimeout(() =>
       store.dispatch({

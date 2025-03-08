@@ -5,7 +5,8 @@
  * @since 0.0.0
  */
 import type { Action } from "@reduxjs/toolkit"
-import type { Effect, Pipeable, Stream, SynchronizedRef } from "effect"
+import type { Pipeable, Stream, SynchronizedRef } from "effect"
+import { Effect } from "effect"
 import * as internal from "./internal/stanza.js"
 import type * as Sonnet from "./Sonnet.js"
 
@@ -35,11 +36,11 @@ export interface Stanza<R = never>
  * @since 0.0.0
  * @category constructors
  */
-export const make: <R>(
+export const make: <S = unknown, R = never>(
   processor: (action$: Stream.Stream<Action>, state: {
-    changes: Stream.Stream<any>
-    latest: Stream.Stream<any>
-    ref: SynchronizedRef.SynchronizedRef<any>
+    changes: Stream.Stream<S>
+    latest: Stream.Stream<S>
+    ref: SynchronizedRef.SynchronizedRef<S>
   }) => Stream.Stream<Action, never, R>
 ) => Stanza<Sonnet.Sonnet.Context | R> = internal.make
 
@@ -90,3 +91,12 @@ export const fromEffect: <R>(
  * @since 0.0.0
  */
 export const isStanza: (u: unknown) => u is Stanza = internal.isStanza
+
+/**
+ * @category utils
+ * @since 0.0.0
+ */
+export const combine = Effect.allWith({
+  discard: true,
+  concurrency: "unbounded"
+})

@@ -1,5 +1,6 @@
 import { assert, describe, expect, it } from "@effect/vitest"
 import { Channel, Effect, Fiber, Layer, Logger, LogLevel, pipe } from "effect"
+import { constVoid } from "effect/Function"
 import type { Reducer } from "redux"
 import { applyMiddleware, legacy_createStore as createStore } from "redux"
 import { Operators, Sonnet } from "redux-sonnet"
@@ -25,7 +26,7 @@ describe("put", () => {
         Sonnet.defaultLayer
       )
 
-      applyMiddleware(spy, sonnet)(createStore)(() => {})
+      applyMiddleware(spy, sonnet)(createStore)(constVoid)
 
       const expected = ["arg", "2"]
 
@@ -62,7 +63,7 @@ describe("put", () => {
 
       const sonnet = Sonnet.make(genFn("arg"), Sonnet.defaultLayer)
 
-      applyMiddleware(sonnet)(createStore)(() => {})
+      applyMiddleware(sonnet)(createStore)(constVoid)
 
       const expected = ["arg", "2"]
 
@@ -101,7 +102,7 @@ describe("put", () => {
         Sonnet.defaultLayer
       )
 
-      applyMiddleware(sonnet)(createStore)(() => {})
+      applyMiddleware(sonnet)(createStore)(constVoid)
 
       const expected = ["arg", "2"]
       yield* Fiber.join(sonnet.fiber)
@@ -244,7 +245,7 @@ describe("put", () => {
         Sonnet.defaultLayer
       )
 
-      applyMiddleware(sonnet)(createStore)(() => {})
+      applyMiddleware(sonnet)(createStore)(constVoid)
 
       const expected = ["put a", "put b"]
 

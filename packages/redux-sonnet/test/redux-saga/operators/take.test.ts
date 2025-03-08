@@ -1,7 +1,6 @@
 import { applyMiddleware, legacy_createStore as createStore } from "redux"
 
 import { describe, expect, it } from "@effect/vitest"
-// import deferred from "@redux-saga/deferred"
 import {
   Channel,
   Chunk,
@@ -14,6 +13,7 @@ import {
   Queue,
   Stream
 } from "effect"
+import { constVoid } from "effect/Function"
 import mitt from "mitt"
 import type { Action } from "redux"
 import { Operators as Op, Sonnet } from "redux-sonnet"
@@ -28,7 +28,7 @@ describe("take", () => {
 
     const genFn = Effect.gen(function*() {
       try {
-        actual.push(yield* Op.unsafeTake(Predicate.isUnknown)) // take all actions
+        actual.push(yield* Op.unsafeTake(Op.isAction)) // take all actions
 
         console.log("took unsafe 1")
 
@@ -87,7 +87,7 @@ describe("take", () => {
     })
 
     const middleware = Sonnet.make(genFn, Sonnet.defaultLayer)
-    const store = applyMiddleware(middleware)(createStore)(() => {})
+    const store = applyMiddleware(middleware)(createStore)(constVoid)
 
     const task = middleware.fiber
     const expected = [
@@ -192,7 +192,7 @@ describe("take", () => {
       })
 
       const middleware = Sonnet.make(genFn, Sonnet.defaultLayer)
-      applyMiddleware(middleware)(createStore)(() => {})
+      applyMiddleware(middleware)(createStore)(constVoid)
 
       const task = middleware.fiber
       const expected = [1, 2, 3, 4].map(Option.some).concat(
@@ -277,7 +277,7 @@ describe("take", () => {
     })
 
     const middleware = Sonnet.make(genFn, Sonnet.defaultLayer)
-    applyMiddleware(middleware)(createStore)(() => {})
+    applyMiddleware(middleware)(createStore)(constVoid)
 
     const task = middleware.fiber
     const expected = ["action-1", "action-2", "in-catch-block", error]

@@ -20,106 +20,92 @@ describe("redux-observable - createEpicSonnet", () => {
   /**
    * @see https://github.com/redux-observable/redux-observable/blob/356ae7583be005b0dcc153b03dbab521478c179e/test/createEpicMiddleware-spec.ts#L87
    */
-  it.effect.skip(
+  it(
     "should update state$ after an action goes through reducers but before epics",
-    ({ expect }) =>
-      Effect.gen(function*() {
-        expect.assertions(2)
+    async () => {
+      expect.assertions(2)
 
-        const actions: Array<Action> = []
+      const actions: Array<Action> = []
 
-        const reducer: Reducer<number> = (state = 0, action) => {
-          actions.push(action)
+      const reducer: Reducer<number> = (state = 0, action) => {
+        actions.push(action)
 
-          if (action.type === "PING") {
-            return state + 1
-          } else {
-            return state
-          }
+        if (action.type === "PING") {
+          return state + 1
+        } else {
+          return state
         }
+      }
 
-        const stanza = Stanza.make((action$, state) =>
-          pipe(
-            Stream.merge(
-              action$.pipe(Stream.filter(Operators.ofType("PING"))),
-              state.changes.pipe(Stream.changes)
-            ),
-            // XXX: why can I not zip this ref?
-            Stream.flatMap((x) =>
-              pipe(
-                Ref.get(state.ref),
-                Effect.map((y) => [x, y])
-              )
-            ),
-            Stream.map(([input, state]) => ({
-              type: "PONG",
-              input,
-              state
-            }))
-          )
+      const stanza = Stanza.make((action$, state) =>
+        pipe(
+          Stream.merge(
+            action$.pipe(Stream.filter(Operators.ofType("PING"))),
+            Stream.concat(state.latest, state.changes).pipe(Stream.changes)
+          ),
+          // XXX: why can I not zip this ref?
+          // Stream.zipLatest(Ref.get(state.ref)),
+          Stream.flatMap((x) =>
+            pipe(
+              Ref.get(state.ref),
+              Effect.map((y) => [x, y])
+            )
+          ),
+          Stream.map(([input, state]) => ({
+            type: "PONG",
+            input,
+            state
+          }))
         )
+      )
 
-        const sonnet = Sonnet.make(
-          stanza,
-          Sonnet.layer({
-            backing: {
-              capacity: 32,
-              strategy: "bounded"
-            },
-            replay: 32
-          })
-        )
+      const sonnet = Sonnet.make(
+        stanza,
+        Sonnet.defaultLayer
+      )
 
-        const store = createStore(reducer, applyMiddleware(sonnet))
+      const store = createStore(reducer, applyMiddleware(sonnet))
 
-        yield* Effect.promise(() =>
-          new Promise((resolve) => setTimeout(resolve, 900))
-        )
+      setTimeout(() => store.dispatch({ type: "PING" }), 0)
+      setTimeout(() => store.dispatch({ type: "PING" }), 0)
 
-        setTimeout(() => store.dispatch({ type: "PING" }), 0)
-        setTimeout(() => store.dispatch({ type: "PING" }), 0)
+      await expect.poll(() => store.getState()).toEqual(2)
 
-        yield* Effect.promise(() =>
-          expect.poll(() => store.getState()).toEqual(2)
-        )
-
-        yield* Effect.promise(() =>
-          expect.poll(() => actions).toEqual([
-            INIT_ACTION,
-            {
-              type: "PONG",
-              input: 0,
-              state: 0
-            },
-            {
-              type: "PING"
-            },
-            {
-              type: "PONG",
-              input: 1,
-              state: 1
-            },
-            {
-              type: "PONG",
-              input: { type: "PING" },
-              state: 1
-            },
-            {
-              type: "PING"
-            },
-            {
-              type: "PONG",
-              input: 2,
-              state: 2
-            },
-            {
-              type: "PONG",
-              input: { type: "PING" },
-              state: 2
-            }
-          ])
-        )
-      })
+      await expect.poll(() => actions).toEqual([
+        INIT_ACTION,
+        {
+          type: "PONG",
+          input: 0,
+          state: 0
+        },
+        {
+          type: "PING"
+        },
+        {
+          type: "PONG",
+          input: 1,
+          state: 1
+        },
+        {
+          type: "PONG",
+          input: { type: "PING" },
+          state: 1
+        },
+        {
+          type: "PING"
+        },
+        {
+          type: "PONG",
+          input: 2,
+          state: 2
+        },
+        {
+          type: "PONG",
+          input: { type: "PING" },
+          state: 2
+        }
+      ])
+    }
   )
 
   describe("should allow accessing state$.value on epic startup", () => {
@@ -344,7 +330,7 @@ describe("redux-observable - createEpicSonnet", () => {
       ])
     })
 
-    it.skip("saga-like", async ({ expect }) => {
+    it("saga-like", async ({ expect }) => {
       expect.assertions(1)
 
       const handleAction = (x: string) =>
@@ -418,8 +404,6 @@ describe("redux-observable - createEpicSonnet", () => {
       { type: "ACTION_1" },
       { type: "ACTION_2" }
     ])
-
-    Effect.runSync(Effect.log("done"))
   })
 
   // WORKING

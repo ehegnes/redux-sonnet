@@ -4,7 +4,6 @@ import { Effect, Effectable, pipe, Predicate, Stream } from "effect"
 import { dual } from "effect/Function"
 import { pipeArguments } from "effect/Pipeable"
 import * as Sonnet from "../Sonnet.js"
-import type * as Sonnet2 from "../Sonnet.js"
 import type * as Stanza from "../Stanza.js"
 
 /** @internal */
@@ -51,44 +50,32 @@ export const bufferActions = dual<
     })
   ))
 
-const a = bufferActions({})
-
 /**
  * Constructs a `Stanza` from a `effect/Stream` processor.
  *
  * @since 0.0.0
  * @category constructors
  */
-export const make = <R>(
+export const make = <S = unknown, R = never>(
   processor: (
     action$: Stream.Stream<Action>,
     state: {
-      changes: Stream.Stream<any>
-      latest: Stream.Stream<any>
-      ref: SynchronizedRef.SynchronizedRef<any>
+      changes: Stream.Stream<S>
+      latest: Stream.Stream<S>
+      ref: SynchronizedRef.SynchronizedRef<S>
     }
   ) => Stream.Stream<Action, never, R>
-): Stanza.Stanza<Sonnet2.Sonnet.Context | R> =>
-  Effect.gen(function*() {
-    const {
-      action,
-      dispatch,
-      state
-    } = yield* Sonnet.SonnetService
-
-    return yield* pipe(
-      processor(
-        action.stream.pipe(
-          Stream.tap((x) => Effect.logTrace("[Stanza] Got action:", x))
-        ),
-        state
-      ),
-      Stream.tap((x) => Effect.logTrace("[stanza] output", x)),
-      Stream.runIntoQueue(dispatch.queue)
+): Stanza.Stanza<Sonnet.Sonnet.Context | R> =>
+  Sonnet.SonnetService.pipe(
+    Effect.andThen(({ action, dispatch, state }) =>
+      pipe(
+        processor(action.stream, state),
+        Stream.runIntoQueue(dispatch.queue)
+      )
     )
-  })
+  )
 
-export const fromStream = <R>(
+export const fromStream = <R = never>(
   self: Stream.Stream<Action, never, R>
 ) =>
   pipe(
@@ -96,7 +83,7 @@ export const fromStream = <R>(
     Effect.andThen(({ dispatch }) => Stream.runIntoQueue(self, dispatch.queue))
   )
 
-export const fromEffect = <R>(
+export const fromEffect = <R = never>(
   effect: Effect.Effect<Action, never, R>
 ) =>
   pipe(

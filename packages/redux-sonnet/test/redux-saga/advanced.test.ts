@@ -1,5 +1,6 @@
 import { describe, expect, it } from "@effect/vitest"
 import { Array as A, Effect, Option, pipe, Stream } from "effect"
+import { constVoid } from "effect/Function"
 import { applyMiddleware, legacy_createStore as createStore } from "redux"
 import { Operators, Sonnet } from "redux-sonnet"
 import { SonnetService } from "redux-sonnet/Sonnet"
@@ -37,7 +38,7 @@ describe("channels", () => {
         watchRequests,
         Sonnet.defaultLayer
       )
-      const store = applyMiddleware(sonnet)(createStore)(() => {})
+      const store = applyMiddleware(sonnet)(createStore)(constVoid)
 
       setTimeout(() => store.dispatch({ type: "REQUEST", payload: 0 }), 0)
       setTimeout(() => store.dispatch({ type: "REQUEST", payload: 1 }), 0)
@@ -94,7 +95,7 @@ describe("channels", () => {
         watchRequests,
         Sonnet.defaultLayer
       )
-      const store = applyMiddleware(sonnet)(createStore)(() => {})
+      const store = applyMiddleware(sonnet)(createStore)(constVoid)
 
       setTimeout(() => store.dispatch({ type: "REQUEST", payload: 0 }), 0)
       setTimeout(() => store.dispatch({ type: "REQUEST", payload: 1 }), 0)
@@ -147,7 +148,7 @@ describe("channels", () => {
         watchRequests,
         Sonnet.defaultLayer
       )
-      const store = applyMiddleware(sonnet)(createStore)(() => {})
+      const store = applyMiddleware(sonnet)(createStore)(constVoid)
 
       A.range(1, 12).forEach((_, i) => {
         setTimeout(() => store.dispatch({ type: "REQUEST", payload: i }), 0)
